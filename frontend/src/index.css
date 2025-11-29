@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+.header-waterdrop {
+	overflow: visible;
+}
+
+.header-waterdrop::after {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: -36px;
+	height: 72px;
+	background: #003366;
+	border-bottom-left-radius: 100% 120%;
+	border-bottom-right-radius: 100% 120%;
+	z-index: -1;
+	pointer-events: none;
+}
