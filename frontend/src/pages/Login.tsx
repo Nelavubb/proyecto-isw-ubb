@@ -57,7 +57,13 @@ const Login = () => {
       {/* Header */}
       <header className="bg-[#003366] text-white py-4 px-6">
         <div className="flex items-center">
-          <div className="w-6 h-6 bg-white mr-3"></div>
+          <div>
+            <img src="/imgs/ubb_logo_extendido.png"
+              alt="Logo UBB"
+              className="h-12 w-auto object-contain bg-white/95 rounded-md px-3 py-1.5 border border-white/20 shadow-sm hover:bg-white transition-colors cursor-pointer" 
+              />
+          </div>
+          <div className="h-10 w-px m-3 bg-white/30"></div>
           <h1 className="text-lg font-semibold">
             Facultad de Derecho - Sistema de Evaluaciones
           </h1>
