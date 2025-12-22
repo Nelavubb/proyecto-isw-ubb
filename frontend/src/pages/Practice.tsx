@@ -26,11 +26,9 @@ const Practice: React.FC = () => {
             try {
                 setLoading(true);
 
-                // Fetch questions
                 const questionsData = await getRandomQuestions(parseInt(id));
                 setQuestions(questionsData);
 
-                // If category name is not in state, fetch it
                 if (!location.state?.categoryName) {
                     const categories = await getCategories();
                     const category = categories.find(c => c.id_category === parseInt(id));

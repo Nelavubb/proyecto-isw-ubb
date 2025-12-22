@@ -11,7 +11,6 @@ const SimulationSelect: React.FC = () => {
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Simulación de fetch (Aquí conectarías con tu backend real)
     useEffect(() => {
         const fetchCategories = async () => {
             try {
@@ -38,7 +37,7 @@ const SimulationSelect: React.FC = () => {
             return <Gavel className="w-6 h-6 text-blue-900" />;
         if (name.includes("Constitucional"))
             return <Landmark className="w-6 h-6 text-blue-900" />;
-        if (name.includes("Prueba"))
+        if (name.includes("prueba"))
             return <BookOpen className="w-6 h-6 text-blue-900" />;
         return <Scale className="w-6 h-6 text-blue-900" />;
     };
