@@ -55,17 +55,14 @@ const Configuracion = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Header title="Facultad de Derecho" />
+      <Header title="Facultad de Derecho" showSettings={false} />
 
-      {/* Background azul que se extiende */}
-      <div className="bg-[#003366] h-10"></div>
-
-      <div className="sticky top-18 z-0 bg-[#003366]">
+      {/*<div className="sticky top-18 z-0 bg-[#003366]">
         <div className="h-3 bg-gray-100 rounded-t-3xl mx-auto"></div>
-      </div>
+      </div>*/}
 
       {/* Espaciado para el header fijo y bottom navigation */}
-      <div className="relative z-10 pt-20 px-6 pb-24 max-w-5xl mx-auto">
+      <div className="relative z-10 pt-24 px-6 pb-24 max-w-5xl mx-auto">
         {/* Título de la página */}
         <div className="mb-4">
           <h2 className="text-4xl font-bold text-[#003366]">Configuración</h2>
@@ -341,68 +338,65 @@ const Configuracion = () => {
               <div className="space-y-2">
                 <div>
                   <h4 className="text-lg font-semibold text-gray-800 mb-2">Tema</h4>
-                  <select
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
-                  >
+                  <select className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]">
                     <option value="light">Claro</option>
                     <option value="dark">Oscuro</option>
-                    <option value="arcoiris">Arcoíris</option>
                     <option value="auto">Automático</option>
                   </select>
                 </div>
 
-          <div>
-            <h4 className="text-lg font-semibold text-gray-800 mb-2">Idioma</h4>
-            <select className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]">
-              <option value="es">Español</option>
-              <option value="en">English</option>
-            </select>
-          </div>
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-800 mb-2">Idioma</h4>
+                  <select className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]">
+                    <option value="es">Español</option>
+                    <option value="en">English</option>
+                  </select>
+                </div>
 
-          <div className="pt-2">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                className="w-5 h-5 text-[#003366] border-gray-300 rounded focus:ring-[#003366]"
-                defaultChecked
-              />
-              <span className="text-gray-700">Recibir notificaciones por correo</span>
-            </label>
-          </div>
+                <div className="pt-2">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="w-5 h-5 text-[#003366] border-gray-300 rounded focus:ring-[#003366]"
+                      defaultChecked
+                    />
+                    <span className="text-gray-700">Recibir notificaciones por correo</span>
+                  </label>
+                </div>
 
-          <div className="pt-2">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                className="w-5 h-5 text-[#003366] border-gray-300 rounded focus:ring-[#003366]"
-                defaultChecked
-              />
-              <span className="text-gray-700">Notificaciones push</span>
-            </label>
-          </div>
+                <div className="pt-2">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="w-5 h-5 text-[#003366] border-gray-300 rounded focus:ring-[#003366]"
+                      defaultChecked
+                    />
+                    <span className="text-gray-700">Notificaciones push</span>
+                  </label>
+                </div>
 
-          <div className="mt-4 pt-2 border-t border-gray-200">
-            <h4 className="text-lg font-semibold text-gray-800 mb-2">Acerca de</h4>
-            <div className="space-y-2 text-gray-600">
-              <p>
-                <span className="font-semibold">Versión:</span> 0.0.1
-              </p>
-              <p>
-                <span className="font-semibold">Sistema:</span> Gestión de Evaluaciones Orales
-              </p>
-              <p>
-                <span className="font-semibold">Facultad:</span> Derecho - Universidad
-              </p>
+                <div className="mt-4 pt-2 border-t border-gray-200">
+                  <h4 className="text-lg font-semibold text-gray-800 mb-2">Acerca de</h4>
+                  <div className="space-y-2 text-gray-600">
+                    <p>
+                      <span className="font-semibold">Versión:</span> 0.0.1
+                    </p>
+                    <p>
+                      <span className="font-semibold">Sistema:</span> Gestión de Evaluaciones Orales
+                    </p>
+                    <p>
+                      <span className="font-semibold">Facultad:</span> Derecho - Universidad
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
-          )}
-    </div>
-      </div >
 
-  <BottomNavigation />
-    </div >
+      <BottomNavigation />
+    </div>
   );
 };
 
