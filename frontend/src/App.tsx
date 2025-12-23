@@ -7,7 +7,6 @@ import {
 import { AuthProvider } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import Configuracion from "./pages/Configuracion";
 import Evaluaciones from "./pages/Evaluaciones";
 import Simulation from "./pages/Practice";
 import RealizacionEvaluacion from "./components/RealizarEvaluacion";
@@ -49,14 +48,6 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/configuracion"
-            element={
-              <ProtectedRoute>
-                <Configuracion />
               </ProtectedRoute>
             }
           />
