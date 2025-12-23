@@ -71,7 +71,7 @@ const Login = () => {
         </div>
       </header>*/}
 
-      <Header title="Facultad de Derecho - Sistema de Evaluaciones Orales" showSettings={false} />
+      <Header title="Facultad de Derecho - Sistema de Evaluaciones Orales" showLogout={false} />
 
       {/* Main Content */}
       <div className="flex items-center justify-center px-4 py-16 pt-24">
