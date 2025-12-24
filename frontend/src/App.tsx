@@ -12,6 +12,8 @@ import Simulation from "./pages/Practice";
 import RealizacionEvaluacion from "./components/RealizarEvaluacion";
 import Historial from "./pages/Historial";
 import SimulationSelect from "./pages/SimulationSelect";
+import QuestionBank from "./pages/QuestionBank";
+import AddQuestion from "./pages/AddQuestion";
 
 // Componente para rutas protegidas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -93,6 +95,26 @@ function App() {
             element={
               <ProtectedRoute>
                 <Historial />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Banco de Preguntas */}
+          <Route
+            path="/QuestionBank"
+            element={
+              <ProtectedRoute>
+                <QuestionBank />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Agregar Pregunta */}
+          <Route
+            path="/AddQuestion"
+            element={
+              <ProtectedRoute>
+                <AddQuestion />
               </ProtectedRoute>
             }
           />

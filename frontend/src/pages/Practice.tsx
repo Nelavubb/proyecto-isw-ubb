@@ -70,7 +70,7 @@ const Practice: React.FC = () => {
                 </h2>
                 <button
                     onClick={() => navigate("/simulationSelect")}
-                    className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800"
+                    className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm"
                 >
                     Volver
                 </button>
@@ -80,7 +80,7 @@ const Practice: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="min-h-screen bg-gray-100 flex flex-col">
             <Header />
             <main className="flex-1 z-10 max-w-4xl mx-auto w-full p-6 pt-24 pb-24">
                 <div className="mb-8 bg-white rounded-lg shadow-md p-6">
@@ -147,7 +147,7 @@ const Practice: React.FC = () => {
                 <div className="mt-12 flex justify-center">
                     <button
                         onClick={() => navigate("/simulationSelect")}
-                        className="px-8 py-3 bg-blue-900 text-white rounded-xl font-bold hover:bg-blue-800 transition-colors shadow-lg shadow-blue-900/20"
+                        className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm"
                     >
                         Volver
                     </button>
