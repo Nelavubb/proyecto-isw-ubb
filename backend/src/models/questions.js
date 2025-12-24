@@ -2,7 +2,7 @@ import { EntitySchema } from 'typeorm';
 
 export const Questions = new EntitySchema({
     name: 'Questions',
-    tableName: 'questions',
+    tableName: 'question',
     columns: {
         id_question: {
             type: 'int',
@@ -22,7 +22,7 @@ export const Questions = new EntitySchema({
             length: 100,
             nullable: false,
         },
-        category_id: {
+        theme_id: {
             type: 'int',
             nullable: false,
         },
@@ -36,13 +36,21 @@ export const Questions = new EntitySchema({
         }
     },
     relations: {
-        category: {
-            target: 'categories', 
+        theme: {
+            target: 'theme', 
             type: 'many-to-one', 
             joinColumn: {
-                name: 'category_id', 
+                name: 'theme_id', 
             },
             onDelete: 'RESTRICT', 
+        },
+        created_by: {   
+            target: 'user',
+            type: 'many-to-one',
+            joinColumn: {
+                name: 'user_id',
+            },
+            onDelete: 'RESTRICT',
         },
     },
 });
