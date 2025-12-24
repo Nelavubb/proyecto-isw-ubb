@@ -9,7 +9,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Evaluaciones from "./pages/Evaluaciones";
 import Simulation from "./pages/Practice";
-import RealizacionEvaluacion from "./components/RealizarEvaluacion";
+import RealizacionEvaluacion from "./pages/RealizarEvaluacion";
 import Historial from "./pages/Historial";
 import SimulationSelect from "./pages/SimulationSelect";
 import QuestionBank from "./pages/QuestionBank";
