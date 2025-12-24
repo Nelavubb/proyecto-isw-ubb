@@ -93,7 +93,7 @@ const ProfesorDashboard = ({ user }: ProfesorDashboardProps) => {
                   </svg>
                   <span className="text-gray-800 font-medium">3 evaluaciones sin calificar.</span>
                 </div>
-                <button className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm">
+                <button className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm">
                   Ver ahora
                 </button>
               </div>
@@ -102,7 +102,7 @@ const ProfesorDashboard = ({ user }: ProfesorDashboardProps) => {
 
           {/* Agregar Preguntas */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Agregar Preguntas</h3>
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Banco de Preguntas</h3>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
@@ -112,7 +112,7 @@ const ProfesorDashboard = ({ user }: ProfesorDashboardProps) => {
                   </svg>
                   <span className="text-gray-800 font-medium">Agregar preguntas al banco de preguntas.</span>
                 </div>
-                <Link to="/RealizarEvaluacion" className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm">
+                <Link to="/QuestionBank" className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm">
                   Añadir
                 </Link>
               </div>
@@ -132,7 +132,7 @@ const ProfesorDashboard = ({ user }: ProfesorDashboardProps) => {
                 </svg>
                 <span className="text-gray-800 font-medium">Evalúa a los estudiantes según los criterios establecidos.</span>
               </div>
-              <Link to="/RealizarEvaluacion" className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm">
+              <Link to="/RealizarEvaluacion" className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm">
                 Ir a Evaluación
               </Link>
             </div>
