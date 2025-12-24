@@ -71,7 +71,7 @@ const Login = () => {
         </div>
       </header>*/}
 
-      <Header title="Facultad de Derecho - Sistema de Evaluaciones Orales" showSettings={false} />
+      <Header title="Facultad de Derecho - Sistema de Evaluaciones Orales" showLogout={false} />
 
       {/* Main Content */}
       <div className="flex items-center justify-center px-4 py-16 pt-24">
@@ -234,7 +234,7 @@ const Login = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-[#003366] text-white font-semibold py-3 rounded-lg hover:bg-[#004488] transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+              className="w-full bg-[#003366] text-white font-bold py-3 rounded-lg hover:bg-[#004488] transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {isLoading ? (
                 <>

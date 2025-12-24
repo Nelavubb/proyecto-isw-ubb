@@ -9,14 +9,7 @@ interface AdministradorDashboardProps {
 const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
   return (
     <>
-      <Header title="Facultad de Derecho - Panel de Administración" />
-
-      {/* Background azul que se extiende */}
-      <div className="bg-[#003366] h-60"></div>
-
-      <div className="sticky top-18 z-0 bg-[#003366]">
-        <div className="h-3 bg-gray-100 rounded-t-3xl mx-auto"></div>
-      </div>
+      <Header variant="dashboard" />
 
       {/* Main Content */}
       <main className="relative z-10 max-w-6xl mx-auto px-6 -mt-36 pb-24">
@@ -121,7 +114,7 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
         {/* Actividad Reciente */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-xl font-bold text-gray-800 mb-4">Actividad Reciente del Sistema</h3>
-          
+
           <div className="space-y-3">
             <div className="flex items-center gap-4 p-3 border-l-4 border-green-500 bg-green-50">
               <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

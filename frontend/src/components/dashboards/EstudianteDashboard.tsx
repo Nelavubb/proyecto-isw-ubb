@@ -92,7 +92,7 @@ const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
                   </svg>
                   <span className="text-gray-800 font-medium">Prepárate para tus evaluaciones practicando con nuestras preguntas simuladas.</span>
                 </div>
-                <Link to="/SimulationSelect" className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm">
+                <Link to="/SimulationSelect" className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm">
                   Practicar ahora
                 </Link>
               </div>
@@ -103,7 +103,7 @@ const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-gray-800">Resultados Recientes</h3>
-              <Link to="/Historial" className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm"> Ver Historial Completo </Link>
+              <Link to="/Historial" className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm"> Ver Historial Completo </Link>
             </div>
 
             <div className="space-y-4">
