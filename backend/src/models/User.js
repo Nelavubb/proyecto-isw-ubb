@@ -2,7 +2,7 @@ import { EntitySchema } from 'typeorm';
 
 export const User = new EntitySchema({
     name: 'User',
-    tableName: 'users',
+    tableName: 'user',
     columns: {
         id: {
             type: 'int',
@@ -19,17 +19,12 @@ export const User = new EntitySchema({
             length: 255,
             nullable: false,
         },
-        nombre: {
+        user_name: {
             type: 'varchar',
             length: 100,
-            nullable: true,
+            nullable: false,
         },
-        apellido: {
-            type: 'varchar',
-            length: 100,
-            nullable: true,
-        },
-        rol: {
+        role: {
             type: 'varchar',
             length: 50,
             default: 'estudiante',
