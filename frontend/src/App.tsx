@@ -14,6 +14,7 @@ import Historial from "./pages/Historial";
 import SimulationSelect from "./pages/SimulationSelect";
 import QuestionBank from "./pages/QuestionBank";
 import AddQuestion from "./pages/AddQuestion";
+import Comisiones from "./pages/Comisiones";
 
 // Componente para rutas protegidas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -115,6 +116,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <AddQuestion />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Gestión de Comisiones */}
+          <Route
+            path="/comisiones"
+            element={
+              <ProtectedRoute>
+                <Comisiones />
               </ProtectedRoute>
             }
           />
