@@ -1,13 +1,13 @@
 import express from 'express';
 import authRoutes from './authRoutes.js';
-import categoriesRoutes from './categories.js';
+import themeRoutes from './theme.js';
 
 
 const router = express.Router();
 
 // Rutas de autenticación
 router.use('/auth', authRoutes);
-router.use('/categories', categoriesRoutes);
+router.use('/theme', themeRoutes);
 
 // Ruta de prueba
 router.get('/health', (req, res) => {
