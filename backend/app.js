@@ -2,8 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { initializeDatabase } from './src/config/database.js';
-import routes from './src/routes/index.js';
-import questionsRoutes from './src/routes/questions.js';
+import routes from './src/routes/indexRoutes.js';
+import questionsRoutes from './src/routes/questionRoutes.js';
 
 // Configurar variables de entorno
 dotenv.config();

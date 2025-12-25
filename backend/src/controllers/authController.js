@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { AppDataSource } from '../config/database.js';
 import { User } from '../models/User.js';
-import { registerValidation , loginValidation } from '../validations/userValidation.js';
+import { registerValidation, loginValidation } from '../validations/userValidation.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -13,9 +13,9 @@ const userRepository = () => AppDataSource.getRepository(User);
 const generateToken = (user) => {
     return jwt.sign(
         {
-            id: user.id,
+            id: user.user_id,
             rut: user.rut,
-            rol: user.rol,
+            role: user.role,
         },
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
@@ -36,7 +36,7 @@ export const register = async (req, res) => {
             });
         }
 
-        const { rut, password, nombre, apellido, rol } = value;
+        const { rut, password, user_name, role } = value;
 
         // Verificar si el usuario ya existe
         const existingUser = await userRepository().findOne({ where: { rut } });
@@ -53,11 +53,10 @@ export const register = async (req, res) => {
 
         // Crear nuevo usuario
         const newUser = userRepository().create({
-            rut : rut,
+            rut: rut,
             password: hashedPassword,
-            nombre: nombre || null,
-            apellido: apellido || null,
-            rol: rol || 'estudiante',
+            user_name: user_name || null,
+            role: role || 'estudiante',
         });
 
         await userRepository().save(newUser);
@@ -151,7 +150,7 @@ export const getProfile = async (req, res) => {
     try {
         const userId = req.user.id;
 
-        const user = await userRepository().findOne({ where: { id: userId } });
+        const user = await userRepository().findOne({ where: { user_id: userId } });
 
         if (!user) {
             return res.status(404).json({
