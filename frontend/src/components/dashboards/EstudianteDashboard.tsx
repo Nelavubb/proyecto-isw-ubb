@@ -77,7 +77,7 @@ const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
               simuladas.
             </p>
 
-            <Link to="/SimulationSelect" className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm"> Practicar ahora</Link>
+            <Link to="/practice/subjects" className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm"> Practicar ahora</Link>
           </div>*/}
 
           {/* Prácticas Activas */}
@@ -92,7 +92,7 @@ const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
                   </svg>
                   <span className="text-gray-800 font-medium">Prepárate para tus evaluaciones practicando con nuestras preguntas simuladas.</span>
                 </div>
-                <Link to="/SimulationSelect" className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm">
+                <Link to="/practice/subjects" className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm">
                   Practicar ahora
                 </Link>
               </div>

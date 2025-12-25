@@ -11,10 +11,10 @@ class AuthService {
     
     // Mapear el usuario del backend al formato del frontend
     const mappedUser: User = {
-      id: user.id.toString(),
-      name: `${user.nombre || ''} ${user.apellido || ''}`.trim() || 'Usuario',
+      id: user.user_id.toString(),
+      name: user.user_name || 'Usuario',
       rut: user.rut,
-      role: this.mapRole(user.rol)
+      role: this.mapRole(user.role)
     };
     
     // Guardar el token en localStorage
@@ -27,11 +27,14 @@ class AuthService {
   private mapRole(rol: string): 'Estudiante' | 'Profesor' | 'Administrador' {
     const roleMap: { [key: string]: 'Estudiante' | 'Profesor' | 'Administrador' } = {
       'estudiante': 'Estudiante',
+      'Estudiante': 'Estudiante',
       'profesor': 'Profesor',
-      'administrador': 'Administrador'
+      'Profesor': 'Profesor',
+      'administrador': 'Administrador',
+      'Administrador': 'Administrador'
     };
     
-    return roleMap[rol.toLowerCase()] || 'Estudiante';
+    return roleMap[rol] || 'Estudiante';
   }
 
   logout(): void {
