@@ -26,4 +26,21 @@ router.get('/random/:categoryId', async (req, res) => {
     }
 });
 
+router.get('/all/:limit', async (req, res) => {
+    const { limit } = req.params;
+
+    try {
+        const questionRepository = AppDataSource.getRepository(Questions);
+        const questions = await questionRepository
+            .createQueryBuilder("question")
+            .limit(limit)
+            .getMany();
+
+        res.json(questions);
+    } catch (error) {
+        console.error("Error al obtener preguntas:", error);
+        res.status(500).json({ message: "Error interno" });
+    }
+});
+
 export default router;
