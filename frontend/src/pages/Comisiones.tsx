@@ -651,7 +651,6 @@ export default function Comisiones() {
                         {/* Overlay */}
                         <div
                             className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
-                            onClick={() => setShowModal(false)}
                         ></div>
 
                         {/* Modal Content */}
