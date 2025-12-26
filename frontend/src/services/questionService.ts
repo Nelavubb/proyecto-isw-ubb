@@ -6,16 +6,13 @@ export interface Question {
     answer: string;
     category_id?: number;
     theme_id: number;
-    created_by: string;
+    user_id: number;
+    user?: {
+        user_name: string;
+    };
     created_at?: string;
     updated_at?: string;
 }
-
-// Deprecated - kept for backwards compatibility
-export const getRandomQuestions = async (categoryId: number): Promise<Question[]> => {
-    const response = await api.get(`/questions/random/${categoryId}`);
-    return response.data;
-};
 
 export const getAllQuestions = async (limit: number): Promise<Question[]> => {
     const response = await api.get(`/questions/all/${limit}`);
@@ -28,7 +25,7 @@ export const getQuestionsByTheme = async (themeId: number): Promise<Question[]> 
     return response.data;
 };
 
-export const createQuestion = async (questionData: { question_text: string; answer: string; theme_id: number; created_by?: string; }): Promise<Question> => {
+export const createQuestion = async (questionData: { question_text: string; answer: string; theme_id: number; user_id?: number; }): Promise<Question> => {
     const response = await api.post('/questions/create', questionData);
     return response.data;
 };

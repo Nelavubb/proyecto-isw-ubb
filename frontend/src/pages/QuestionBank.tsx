@@ -63,7 +63,7 @@ const QuestionBank = () => {
                         themeColor: color,
                         question: q.question_text,
                         excerpt: q.answer, // Using answer as excerpt for now
-                        author: q.created_by || 'Profesor', // Display actual stored value
+                        author: q.user?.user_name || 'Desconocido',
                         createdAt: q.created_at ? new Date(q.created_at).toLocaleDateString() : '-',
                         modifiedAt: q.updated_at ? new Date(q.updated_at).toLocaleDateString() : '-'
                     };

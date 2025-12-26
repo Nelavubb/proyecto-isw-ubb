@@ -22,6 +22,7 @@ export default function ModifyQuestion() {
     const [enunciado, setEnunciado] = useState('');
     const [respuesta, setRespuesta] = useState('');
     const [loading, setLoading] = useState(true);
+    const [metadata, setMetadata] = useState({ author: '', lastModified: '' });
 
     // Fetch Initial Data
     useEffect(() => {
@@ -35,7 +36,12 @@ export default function ModifyQuestion() {
                 if (id) {
                     const question = await getQuestionById(parseInt(id));
                     setEnunciado(question.question_text);
+                    setEnunciado(question.question_text);
                     setRespuesta(question.answer);
+                    setMetadata({
+                        author: question.user?.user_name || 'Desconocido',
+                        lastModified: question.updated_at ? new Date(question.updated_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'
+                    });
 
                     // 3. Determine Subject from Theme
                     // Since the question only has theme_id, we need to find which subject this theme belongs to.
@@ -233,12 +239,12 @@ export default function ModifyQuestion() {
                             <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 w-full md:w-auto text-center sm:text-left">
                                 <div>
                                     <span className="text-xs font-bold text-gray-900 block">Modificado por:</span>
-                                    <span className="text-sm text-gray-600">Dr. Roberto Silva</span>
+                                    <span className="text-sm text-gray-600">{metadata.author}</span>
                                 </div>
                                 <div>
                                     <span className="text-xs font-bold text-gray-900 block">Última Modificación:</span>
                                     <span className="text-sm text-gray-600 flex items-center justify-center sm:justify-start gap-1">
-                                        {new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                        {metadata.lastModified}
                                     </span>
                                 </div>
                             </div>

@@ -4,27 +4,28 @@ import { Questions } from '../models/questions.js';
 
 const router = express.Router();
 
-// GET /api/questions/random/:categoryId
-router.get('/random/:categoryId', async (req, res) => {
-    const { categoryId } = req.params;
+// GET /api/questions/by-theme/:themeId
+router.get('/by-theme/:themeId', async (req, res) => {
+    const { themeId } = req.params;
 
     try {
         const questionRepository = AppDataSource.getRepository(Questions);
 
-        // Usamos createQueryBuilder para hacer el RANDOM() compatible con Postgres
         const questions = await questionRepository
             .createQueryBuilder("question")
-            .where("question.category_id = :id", { id: categoryId })
-            .orderBy("RANDOM()") // Función nativa de PostgreSQL
+            .where("question.theme_id = :id", { id: themeId })
+            .leftJoinAndSelect("question.user", "user")
+            .orderBy("RANDOM()")
             .limit(10)
             .getMany();
 
         res.json(questions);
     } catch (error) {
-        console.error("Error al obtener preguntas:", error);
+        console.error("Error al obtener preguntas por tema:", error);
         res.status(500).json({ message: "Error interno" });
     }
 });
+
 
 router.get('/all/:limit', async (req, res) => {
     const { limit } = req.params;
@@ -33,6 +34,7 @@ router.get('/all/:limit', async (req, res) => {
         const questionRepository = AppDataSource.getRepository(Questions);
         const questions = await questionRepository
             .createQueryBuilder("question")
+            .leftJoinAndSelect("question.user", "user")
             .limit(limit)
             .getMany();
 
@@ -45,7 +47,7 @@ router.get('/all/:limit', async (req, res) => {
 
 // POST /api/questions/create
 router.post('/create', async (req, res) => {
-    const { question_text, answer, theme_id, created_by } = req.body;
+    const { question_text, answer, theme_id, user_id } = req.body;
 
     try {
         const questionRepository = AppDataSource.getRepository(Questions);
@@ -53,7 +55,7 @@ router.post('/create', async (req, res) => {
             question_text,
             answer,
             theme_id,
-            created_by: created_by || "Profesor",
+            user_id: user_id || 3, // Default to 3 (Profesor) if not provided
             created_at: new Date(),
             updated_at: new Date()
         });
@@ -72,7 +74,8 @@ router.get('/:id', async (req, res) => {
     try {
         const questionRepository = AppDataSource.getRepository(Questions);
         const question = await questionRepository.findOne({
-            where: { id_question: parseInt(id) }
+            where: { id_question: parseInt(id) },
+            relations: ['user']
         });
 
         if (!question) {
