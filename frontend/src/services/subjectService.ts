@@ -10,3 +10,8 @@ export const getEnrolledSubjects = async (userId: number): Promise<Subject[]> =>
     const response = await api.get(`/subjects/enrolled/${userId}`);
     return response.data;
 };
+
+export const getSubjectsByUser = async (userId: number): Promise<Subject[]> => {
+    const response = await api.get(`/subjects/by-user/${userId}`);
+    return response.data;
+};
