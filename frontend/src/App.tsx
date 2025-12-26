@@ -8,14 +8,19 @@ import { AuthProvider } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Evaluaciones from "./pages/Evaluaciones";
-import Simulation from "./pages/Practice";
+import Practice from "./pages/Practice";
 import RealizacionEvaluacion from "./pages/RealizarEvaluacion";
 import Historial from "./pages/Historial";
-import SimulationSelect from "./pages/SimulationSelect";
+import SubjectSelect from "./pages/SubjectSelect";
+import ThemeSelect from "./pages/ThemeSelect";
 import QuestionBank from "./pages/QuestionBank";
 import AddQuestion from "./pages/AddQuestion";
 import Comisiones from "./pages/Comisiones";
 import GestionTemas from "./pages/GestionTemas";
+import Users from "./pages/Users";
+import HistorySubjectSelect from "./pages/HistorySubjectSelect";
+import HistoryEvaluationList from "./pages/HistoryEvaluationList";
+import HistoryEvaluationDetail from "./pages/HistoryEvaluationDetail";
 
 // Componente para rutas protegidas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -74,32 +79,65 @@ function App() {
             }
           />
 
-          {/* Simulación */}
+          {/* Práctica - Nuevo flujo de 3 pasos */}
           <Route
-            path="/simulation/practica/:id"
+            path="/practice/subjects"
             element={
               <ProtectedRoute>
-                <Simulation />
+                <SubjectSelect />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/simulationSelect"
+            path="/practice/themes/:subjectId"
             element={
               <ProtectedRoute>
-                <SimulationSelect />
+                <ThemeSelect />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/practice/quiz/:themeId"
+            element={
+              <ProtectedRoute>
+                <Practice />
               </ProtectedRoute>
             }
           />
 
+
+          {/* Historial de Evaluaciones - Flujo de 3 pasos */}
           <Route
-            path="/Historial"
+            path="/history/subjects"
             element={
               <ProtectedRoute>
-                <Historial />
+                <HistorySubjectSelect />
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/history/evaluations/:subjectId/:semester"
+            element={
+              <ProtectedRoute>
+                <HistoryEvaluationList />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/history/detail/:evaluationDetailId"
+            element={
+              <ProtectedRoute>
+                <HistoryEvaluationDetail />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Redirect old Historial route to new flow */}
+          <Route
+            path="/Historial"
+            element={<Navigate to="/history/subjects" />}
+          />
+
 
           {/* Banco de Preguntas */}
           <Route
@@ -141,6 +179,16 @@ function App() {
             }
           />
 
+          {/* Gestión de Usuarios */}
+          <Route
+            path="/usuarios"
+            element={
+              <ProtectedRoute>
+                <Users />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Ruta por defecto */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
@@ -150,3 +198,4 @@ function App() {
 }
 
 export default App;
+

@@ -1,7 +1,7 @@
 import Joi from 'joi';
 
 export const registerValidation = Joi.object({
-    rol: Joi.string()
+    role: Joi.string()
         .valid('Estudiante', 'Profesor', 'Administrador')
         .optional()
         .messages({
@@ -14,21 +14,13 @@ export const registerValidation = Joi.object({
             'string.min': 'La contraseña debe tener al menos 6 caracteres',
             'any.required': 'La contraseña es obligatoria',
         }),
-    nombre: Joi.string()
+    user_name: Joi.string()
         .min(2)
         .max(100)
         .optional()
         .messages({
             'string.min': 'El nombre debe tener al menos 2 caracteres',
             'string.max': 'El nombre no puede exceder 100 caracteres',
-        }),
-    apellido: Joi.string()
-        .min(2)
-        .max(100)
-        .optional()
-        .messages({
-            'string.min': 'El apellido debe tener al menos 2 caracteres',
-            'string.max': 'El apellido no puede exceder 100 caracteres',
         }),
     rut: Joi.string()
         .required()

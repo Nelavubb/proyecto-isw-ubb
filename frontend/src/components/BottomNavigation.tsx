@@ -36,7 +36,7 @@ const BottomNavigation = () => {
           ),
         },
         {
-          path: '/SimulationSelect',
+          path: '/practice/subjects',
           label: 'Práctica',
           icon: (
             <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,11 +108,10 @@ const BottomNavigation = () => {
             <button
               key={item.path}
               onClick={() => navigate(item.path)}
-              className={`flex flex-col items-center transition-colors ${
-                isActive(item.path)
+              className={`flex flex-col items-center transition-colors ${isActive(item.path)
                   ? 'text-[#003366] font-semibold'
                   : 'text-gray-500 hover:text-[#003366]'
-              }`}
+                }`}
             >
               {item.icon}
               <span className="text-xs">{item.label}</span>

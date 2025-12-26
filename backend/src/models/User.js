@@ -4,7 +4,7 @@ export const User = new EntitySchema({
     name: 'User',
     tableName: 'user',
     columns: {
-        id: {
+        user_id: {
             type: 'int',
             primary: true,
             generated: true,

@@ -37,7 +37,7 @@ export const score_detail = new EntitySchema({
             target: 'evaluation_details',
             type: 'many-to-one',
             joinColumn: {
-               name: 'evaluation_detail_id',
+                name: 'evaluation_detail_id',
             },
             onDelete: 'CASCADE',
         },

@@ -1,5 +1,4 @@
 import { EntitySchema } from 'typeorm';
-import { Subject } from 'typeorm/persistence/Subject.js';
 
 export const Theme = new EntitySchema({
     name: 'Theme',

@@ -1,13 +1,47 @@
 import { User } from '../../types/auth.types';
 import Header from '../Header.tsx';
 import BottomNavigation from '../BottomNavigation';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { getRecentEvaluations, RecentEvaluation } from '../../services/historyService';
 
 interface EstudianteDashboardProps {
   user: User;
 }
 
 const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
+  const navigate = useNavigate();
+  const [recentEvaluations, setRecentEvaluations] = useState<RecentEvaluation[]>([]);
+  const [loadingEvaluations, setLoadingEvaluations] = useState(true);
+
+  useEffect(() => {
+    const fetchRecentEvaluations = async () => {
+      if (!user?.id) return;
+
+      try {
+        const evaluations = await getRecentEvaluations(parseInt(user.id));
+        setRecentEvaluations(evaluations);
+      } catch (error) {
+        console.error('Error fetching recent evaluations:', error);
+      } finally {
+        setLoadingEvaluations(false);
+      }
+    };
+
+    fetchRecentEvaluations();
+  }, [user]);
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'long' });
+  };
+
+  const getGradeColor = (grade: number) => {
+    if (grade >= 6.0) return "text-green-600";
+    if (grade >= 4.0) return "text-blue-600";
+    return "text-red-600";
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Header variant="dashboard" />
@@ -77,7 +111,7 @@ const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
               simuladas.
             </p>
 
-            <Link to="/SimulationSelect" className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm"> Practicar ahora</Link>
+            <Link to="/practice/subjects" className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm"> Practicar ahora</Link>
           </div>*/}
 
           {/* Prácticas Activas */}
@@ -92,7 +126,7 @@ const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
                   </svg>
                   <span className="text-gray-800 font-medium">Prepárate para tus evaluaciones practicando con nuestras preguntas simuladas.</span>
                 </div>
-                <Link to="/SimulationSelect" className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm">
+                <Link to="/practice/subjects" className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm">
                   Practicar ahora
                 </Link>
               </div>
@@ -103,42 +137,45 @@ const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-gray-800">Resultados Recientes</h3>
-              <Link to="/Historial" className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm"> Ver Historial Completo </Link>
+              <Link to="/history/subjects" className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm"> Ver Historial Completo </Link>
             </div>
 
-            <div className="space-y-4">
-              {/* Resultado 1 */}
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="bg-gray-100 p-3 rounded-lg">
-                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-800">Derecho Constitucional</h4>
-                    <p className="text-sm text-gray-500">Publicado: 05 de Octubre</p>
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-[#003366]">4.5</div>
+            {loadingEvaluations ? (
+              <div className="space-y-4">
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-20 bg-gray-200 rounded-lg animate-pulse"></div>
+                ))}
               </div>
-
-              {/* Resultado 2 */}
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="bg-gray-100 p-3 rounded-lg">
-                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-800">Teoría General del Proceso</h4>
-                    <p className="text-sm text-gray-500">Publicado: 01 de Octubre</p>
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-[#003366]">6.0</div>
+            ) : recentEvaluations.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No tienes evaluaciones recientes.</p>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                {recentEvaluations.map((evaluation) => (
+                  <button
+                    key={evaluation.evaluation_detail_id}
+                    onClick={() => navigate(`/history/detail/${evaluation.evaluation_detail_id}`)}
+                    className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="bg-gray-100 p-3 rounded-lg">
+                        <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="text-left">
+                        <h4 className="font-semibold text-gray-800">{evaluation.subject_name}</h4>
+                        <p className="text-sm text-gray-500">Publicado: {formatDate(evaluation.date)}</p>
+                      </div>
+                    </div>
+                    <div className={`text-2xl font-bold ${getGradeColor(evaluation.grade)}`}>
+                      {evaluation.grade.toFixed(1)}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </main>
