@@ -15,6 +15,7 @@ router.get('/random/:categoryId', async (req, res) => {
         const questions = await questionRepository
             .createQueryBuilder("question")
             .where("question.category_id = :id", { id: categoryId })
+            .leftJoinAndSelect("question.user", "user")
             .orderBy("RANDOM()") // Función nativa de PostgreSQL
             .limit(10)
             .getMany();
@@ -33,6 +34,7 @@ router.get('/all/:limit', async (req, res) => {
         const questionRepository = AppDataSource.getRepository(Questions);
         const questions = await questionRepository
             .createQueryBuilder("question")
+            .leftJoinAndSelect("question.user", "user")
             .limit(limit)
             .getMany();
 
@@ -45,7 +47,7 @@ router.get('/all/:limit', async (req, res) => {
 
 // POST /api/questions/create
 router.post('/create', async (req, res) => {
-    const { question_text, answer, theme_id, created_by } = req.body;
+    const { question_text, answer, theme_id, user_id } = req.body;
 
     try {
         const questionRepository = AppDataSource.getRepository(Questions);
@@ -53,7 +55,7 @@ router.post('/create', async (req, res) => {
             question_text,
             answer,
             theme_id,
-            created_by: created_by || "Profesor",
+            user_id: user_id || 3, // Default to 3 (Profesor) if not provided
             created_at: new Date(),
             updated_at: new Date()
         });
@@ -72,7 +74,8 @@ router.get('/:id', async (req, res) => {
     try {
         const questionRepository = AppDataSource.getRepository(Questions);
         const question = await questionRepository.findOne({
-            where: { id_question: parseInt(id) }
+            where: { id_question: parseInt(id) },
+            relations: ['user']
         });
 
         if (!question) {

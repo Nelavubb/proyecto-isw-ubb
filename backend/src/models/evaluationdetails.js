@@ -14,7 +14,7 @@ export const Evaluation_detail = new EntitySchema({
             type: 'int',
             nullable: false,
         },
-        commision_id: {
+        commission_id: {
             type: 'int',
             nullable: false,
         },
@@ -56,11 +56,11 @@ export const Evaluation_detail = new EntitySchema({
             },
             onDelete: 'CASCADE',
         },
-        commision: {
+        commission: {
             target: 'commission',
             type: 'many-to-one',
             joinColumn: {
-                name: 'commision_id',
+                name: 'commission_id',
             },
             onDelete: 'CASCADE',
         },

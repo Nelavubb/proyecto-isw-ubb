@@ -66,7 +66,7 @@ export default function AddQuestion() {
                 question_text: enunciado,
                 answer: respuesta,
                 theme_id: parseInt(selectedThemeId),
-                created_by: '3' // Using ID 3 as per current auth context
+                user_id: 3 // Default user ID as per current auth context
             });
             // Navigate back to bank or show success toast
             navigate('/QuestionBank');
