@@ -2,8 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { initializeDatabase } from './src/config/database.js';
-import routes from './src/routes/index.js';
-import questionsRoutes from './src/routes/questions.js';
+import routes from './src/routes/indexRoutes.js';
 
 // Configurar variables de entorno
 dotenv.config();
@@ -12,10 +11,15 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middlewares
-app.use(cors({
+const corsOptions = {
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true,
-}));
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -27,14 +31,13 @@ app.use((req, res, next) => {
 
 // Rutas
 app.use('/api', routes);
-app.use('/api/questions', questionsRoutes);
 // Ruta raíz
 app.get('/', (req, res) => {
     res.send('API de Gestión de Evaluaciones Orales');
 });
 
 // Manejo de rutas no encontradas
-app.use(cors(), (req, res) => {
+app.use((req, res) => {
     res.sendStatus(404);
 });
 

@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
-import { getRandomQuestions, Question } from "../services/questionService";
+import { getQuestionsByTheme, Question } from "../services/questionService";
 import Header from "../components/Header";
-import { getCategories } from "../services/categoryService";
 import BottomNavigation from "../components/BottomNavigation";
 
 const Practice: React.FC = () => {
-    const { id } = useParams<{ id: string }>();
+    const { themeId } = useParams<{ themeId: string }>();
     const navigate = useNavigate();
     const location = useLocation();
     const [questions, setQuestions] = useState<Question[]>([]);
-    const [categoryName, setCategoryName] = useState<string>(
-        location.state?.categoryName || "Tema"
+    const [themeName, setThemeName] = useState<string>(
+        location.state?.themeName || "Tema"
     );
     const [loading, setLoading] = useState(true);
     // Estado para manejar qué respuestas están visibles (por ID de pregunta)
@@ -22,20 +21,12 @@ const Practice: React.FC = () => {
 
     useEffect(() => {
         const fetchData = async () => {
-            if (!id) return;
+            if (!themeId) return;
             try {
                 setLoading(true);
 
-                const questionsData = await getRandomQuestions(parseInt(id));
+                const questionsData = await getQuestionsByTheme(parseInt(themeId));
                 setQuestions(questionsData);
-
-                if (!location.state?.categoryName) {
-                    const categories = await getCategories();
-                    const category = categories.find(c => c.id_category === parseInt(id));
-                    if (category) {
-                        setCategoryName(category.name);
-                    }
-                }
             } catch (error) {
                 console.error("Error fetching data:", error);
             } finally {
@@ -44,13 +35,24 @@ const Practice: React.FC = () => {
         };
 
         fetchData();
-    }, [id, location.state]);
+    }, [themeId, location.state]);
 
     const toggleAnswer = (questionId: number) => {
         setVisibleAnswers((prev) => ({
             ...prev,
             [questionId]: !prev[questionId],
         }));
+    };
+
+    // Función para volver a la página anterior (temas)
+    const goBack = () => {
+        // Intentar obtener el subjectId del state si está disponible
+        if (location.state?.subjectId) {
+            navigate(`/practice/themes/${location.state.subjectId}`);
+        } else {
+            // Si no hay subjectId, volver a asignaturas
+            navigate("/practice/subjects");
+        }
     };
 
     if (loading) {
@@ -69,9 +71,10 @@ const Practice: React.FC = () => {
                     Esta práctica no se encuentra disponible por el momento.
                 </h2>
                 <button
-                    onClick={() => navigate("/simulationSelect")}
+                    onClick={goBack}
                     className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm"
                 >
+                    <ArrowLeft className="w-4 h-4" />
                     Volver
                 </button>
                 <BottomNavigation />
@@ -86,7 +89,7 @@ const Practice: React.FC = () => {
                 <div className="mb-8 bg-white rounded-lg shadow-md p-6">
                     <div className="border-l-4 border-blue-900 pl-4">
                         <h2 className="text-xl font-semibold text-gray-700">
-                            Práctica de {categoryName}
+                            Práctica de {themeName}
                         </h2>
                         <p className="text-gray-500 text-sm mt-1">
                             Responde las siguientes preguntas para practicar
@@ -146,9 +149,10 @@ const Practice: React.FC = () => {
 
                 <div className="mt-12 flex justify-center">
                     <button
-                        onClick={() => navigate("/simulationSelect")}
+                        onClick={goBack}
                         className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm"
                     >
+                        <ArrowLeft className="w-4 h-4" />
                         Volver
                     </button>
                 </div>

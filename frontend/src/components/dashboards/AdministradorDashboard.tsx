@@ -1,12 +1,44 @@
 import { User } from '../../types/auth.types';
 import Header from '../Header.tsx';
 import BottomNavigation from '../BottomNavigation';
+import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { createUser } from '../../services/userService';
 
 interface AdministradorDashboardProps {
   user: User;
 }
 
 const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
+  const navigate = useNavigate();
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState({
+    rut: '',
+    user_name: '',
+    role: '',
+  });
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setFormData({ rut: '', user_name: '', role: '' });
+  };
+
+  const handleSaveUser = async () => {
+    try {
+      if (!formData.rut || !formData.user_name || !formData.role) {
+        alert('Por favor, completa todos los campos');
+        return;
+      }
+
+      await createUser(formData);
+      alert('Usuario agregado exitosamente');
+      handleCloseModal();
+    } catch (error) {
+      console.error('Error al guardar usuario:', error);
+      alert('Error al guardar el usuario');
+    }
+  };
+
   return (
     <>
       <Header variant="dashboard" />
@@ -95,13 +127,17 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
             <h3 className="text-xl font-bold text-gray-800 mb-4">Gestión de Usuarios</h3>
             <p className="text-gray-600 mb-4">Administra estudiantes y profesores.</p>
             <div className="space-y-3">
-              <button className="w-full px-4 py-3 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-left flex items-center gap-3">
+              <button 
+                onClick={() => setShowModal(true)}
+                className="w-full px-4 py-3 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-left flex items-center gap-3">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                 </svg>
                 Agregar Nuevo Usuario
               </button>
-              <button className="w-full px-4 py-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-left flex items-center gap-3">
+              <button 
+                onClick={() => navigate('/usuarios')}
+                className="w-full px-4 py-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-left flex items-center gap-3">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
@@ -148,6 +184,82 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
           </div>
         </div>
       </main>
+
+      {/* Modal para agregar usuario */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-[#003366]">Agregar Nuevo Usuario</h2>
+              <button
+                onClick={handleCloseModal}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  RUT <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.rut}
+                  onChange={(e) => setFormData({ ...formData, rut: e.target.value })}
+                  placeholder="12.345.678-9"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Nombre de Usuario <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.user_name}
+                  onChange={(e) => setFormData({ ...formData, user_name: e.target.value })}
+                  placeholder="Juan Pérez"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Rol <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                >
+                  <option value="">Seleccionar Rol</option>
+                  <option value="Estudiante">Estudiante</option>
+                  <option value="Profesor">Profesor</option>
+                  <option value="Administrador">Administrador</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                onClick={handleCloseModal}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveUser}
+                className="flex-1 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition font-medium"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNavigation />
     </>
