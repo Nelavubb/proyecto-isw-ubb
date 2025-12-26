@@ -14,12 +14,6 @@ export interface Question {
     updated_at?: string;
 }
 
-// Deprecated - kept for backwards compatibility
-export const getRandomQuestions = async (categoryId: number): Promise<Question[]> => {
-    const response = await api.get(`/questions/random/${categoryId}`);
-    return response.data;
-};
-
 export const getAllQuestions = async (limit: number): Promise<Question[]> => {
     const response = await api.get(`/questions/all/${limit}`);
     return response.data;

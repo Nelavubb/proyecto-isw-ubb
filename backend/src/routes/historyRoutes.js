@@ -59,13 +59,13 @@ router.get('/evaluations/:userId/:subjectId/:semester', async (req, res) => {
         // JOIN: Evaluation_detail -> Commission -> Theme -> Subject
         const evaluations = await evalRepo
             .createQueryBuilder("ed")
-            .innerJoin("commission", "c", "c.commission_id = ed.commision_id")
+            .innerJoin("commission", "c", "c.commission_id = ed.commission_id")
             .innerJoin("theme", "t", "t.theme_id = c.theme_id")
             .innerJoin("student_subject", "ss", "ss.subject_id = t.subject_id AND ss.user_id = ed.user_id")
             .select([
                 "ed.evaluation_detail_id",
                 "ed.grade",
-                "c.comission_name",
+                "c.commission_name",
                 "c.date",
                 "t.theme_name"
             ])
@@ -153,7 +153,7 @@ router.get('/recent/:userId', async (req, res) => {
 
         const recentEvaluations = await evalRepo
             .createQueryBuilder("ed")
-            .innerJoin("commission", "c", "c.commission_id = ed.commision_id")
+            .innerJoin("commission", "c", "c.commission_id = ed.commission_id")
             .innerJoin("theme", "t", "t.theme_id = c.theme_id")
             .innerJoin("subject", "s", "s.subject_id = t.subject_id")
             .select([

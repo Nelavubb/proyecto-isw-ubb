@@ -17,7 +17,7 @@ export const Commission = new EntitySchema({
             type: 'int',
             nullable: false,
         },
-        comission_name: {
+        commission_name: {
             type: 'varchar',
             length: 200,
             nullable: false,
