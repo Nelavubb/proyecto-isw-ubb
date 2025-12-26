@@ -46,7 +46,7 @@ export const Evaluation_detail = new EntitySchema({
         },
         user: {
             target: 'user',
-            type: 'one-to-one',
+            type: 'many-to-one',
             joinColumn: {
                 name: 'user_id',
             },

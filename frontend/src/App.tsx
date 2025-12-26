@@ -18,6 +18,7 @@ import AddQuestion from "./pages/AddQuestion";
 import Comisiones from "./pages/Comisiones";
 import GestionTemas from "./pages/GestionTemas";
 import Users from "./pages/Users";
+import EditQuestion from "./pages/EditQuestion";
 
 // Componente para rutas protegidas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -131,6 +132,16 @@ function App() {
             }
           />
 
+          {/* Modificar Pregunta */}
+          <Route
+            path="/EditQuestion/:id"
+            element={
+              <ProtectedRoute>
+                <EditQuestion />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Gestión de Comisiones */}
           <Route
             path="/comisiones"
@@ -170,4 +181,3 @@ function App() {
 }
 
 export default App;
-
