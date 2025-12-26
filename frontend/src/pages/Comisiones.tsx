@@ -9,6 +9,7 @@ interface Tema {
     nombre: string;
     asignatura: string;
     nombrePauta?: string;
+    pautaAsignada?: boolean;
 }
 
 interface Estudiante {
@@ -123,6 +124,8 @@ const MOCK_EVALUACIONES: Evaluacion[] = [
 ];
 
 export default function Comisiones() {
+    const navigate = useNavigate();
+    
     // Estado para controlar la vista actual: 'lista' o 'crear'
     const [vistaActual, setVistaActual] = useState<'lista' | 'crear'>('lista');
     
@@ -264,7 +267,7 @@ export default function Comisiones() {
                     <div className="max-w-6xl mx-auto space-y-6">
 
                         {/* Header Section */}
-                        <div className="flex flex-col md:flex-row md:items-center justify-between rounded-lg bg-white mb-8 gap-4 shadow-md p-6">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between rounded-lg bg-white mb-8 gap-4 shadow-md p-6 border-l-4 border-[#003366]">
                             <div>
                                 <h1 className="text-2xl font-bold text-[#003366]">Gestión de Evaluaciones</h1>
                                 <p className="text-sm text-gray-500 mt-1">Administre sus evaluaciones orales y comisiones asignadas.</p>
