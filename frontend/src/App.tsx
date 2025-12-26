@@ -18,6 +18,9 @@ import AddQuestion from "./pages/AddQuestion";
 import Comisiones from "./pages/Comisiones";
 import GestionTemas from "./pages/GestionTemas";
 import Users from "./pages/Users";
+import HistorySubjectSelect from "./pages/HistorySubjectSelect";
+import HistoryEvaluationList from "./pages/HistoryEvaluationList";
+import HistoryEvaluationDetail from "./pages/HistoryEvaluationDetail";
 
 // Componente para rutas protegidas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -102,14 +105,39 @@ function App() {
             }
           />
 
+
+          {/* Historial de Evaluaciones - Flujo de 3 pasos */}
           <Route
-            path="/Historial"
+            path="/history/subjects"
             element={
               <ProtectedRoute>
-                <Historial />
+                <HistorySubjectSelect />
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/history/evaluations/:subjectId/:semester"
+            element={
+              <ProtectedRoute>
+                <HistoryEvaluationList />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/history/detail/:evaluationDetailId"
+            element={
+              <ProtectedRoute>
+                <HistoryEvaluationDetail />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Redirect old Historial route to new flow */}
+          <Route
+            path="/Historial"
+            element={<Navigate to="/history/subjects" />}
+          />
+
 
           {/* Banco de Preguntas */}
           <Route
