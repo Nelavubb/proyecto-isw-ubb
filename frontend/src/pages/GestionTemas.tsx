@@ -215,9 +215,9 @@ export default function GestionTemas() {
                 <div className="max-w-6xl mx-auto space-y-6">
 
                     {/* Header Section */}
-                    <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[#003366]">
-                        <h1 className="text-2xl font-bold text-[#003366] mb-1">Gestión de Temas y Banco de Preguntas</h1>
-                        <p className="text-sm text-gray-500">
+                    <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[#003366] min-h-[112px] flex flex-col justify-center">
+                        <h1 className="text-2xl font-bold text-[#003366]">Gestión de Temas y Banco de Preguntas</h1>
+                        <p className="text-sm text-gray-500 mt-1">
                             Cree temas de evaluación y agregue preguntas al banco para cada asignatura.
                         </p>
                     </div>
