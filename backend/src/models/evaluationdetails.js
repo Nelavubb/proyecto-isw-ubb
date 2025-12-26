@@ -34,6 +34,10 @@ export const Evaluation_detail = new EntitySchema({
             type: 'float',
             nullable: true,
         },
+        created_at: {
+            type: 'timestamp',
+            createDate: true,
+        },
     },
     relations: {
         guidline: {
@@ -46,7 +50,7 @@ export const Evaluation_detail = new EntitySchema({
         },
         user: {
             target: 'user',
-            type: 'one-to-one',
+            type: 'one-to-many',
             joinColumn: {
                 name: 'user_id',
             },
