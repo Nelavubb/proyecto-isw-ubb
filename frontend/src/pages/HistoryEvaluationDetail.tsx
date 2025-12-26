@@ -127,9 +127,6 @@ const HistoryEvaluationDetail: React.FC = () => {
                                         <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 w-32">
                                             Puntaje Máximo
                                         </th>
-                                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 w-24">
-                                            %
-                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -150,14 +147,24 @@ const HistoryEvaluationDetail: React.FC = () => {
                                             <td className="py-4 px-4 text-center text-gray-600">
                                                 {score.max_score.toFixed(1)}
                                             </td>
-                                            <td className="py-4 px-4 text-center">
-                                                <span className="text-sm font-medium text-gray-700">
-                                                    {calculatePercentage(score.actual_score, score.max_score)}%
-                                                </span>
-                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
+                                <tfoot>
+                                    <tr className="border-t-2 border-gray-300 bg-blue-50">
+                                        <td className="py-4 px-4 text-gray-800 font-bold">
+                                            Total
+                                        </td>
+                                        <td className="py-4 px-4 text-center">
+                                            <span className="font-bold text-blue-900 text-lg">
+                                                {evaluation.scores.reduce((sum, score) => sum + score.actual_score, 0).toFixed(1)}
+                                            </span>
+                                        </td>
+                                        <td className="py-4 px-4 text-center text-gray-700 font-semibold">
+                                            {evaluation.scores.reduce((sum, score) => sum + score.max_score, 0).toFixed(1)}
+                                        </td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     )}

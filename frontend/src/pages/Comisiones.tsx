@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
 
@@ -125,9 +125,13 @@ const MOCK_EVALUACIONES: Evaluacion[] = [
 
 export default function Comisiones() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    
+    // Leer parámetro step de la URL
+    const step = searchParams.get('step');
     
     // Estado para controlar la vista actual: 'lista' o 'crear'
-    const [vistaActual, setVistaActual] = useState<'lista' | 'crear'>('lista');
+    const [vistaActual, setVistaActual] = useState<'lista' | 'crear'>(step === 'crear' ? 'crear' : 'lista');
     
     // Estado para las evaluaciones
     const [evaluaciones, setEvaluaciones] = useState<Evaluacion[]>(MOCK_EVALUACIONES);
