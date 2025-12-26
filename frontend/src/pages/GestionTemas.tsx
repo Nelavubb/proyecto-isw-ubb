@@ -13,7 +13,6 @@ interface Pregunta {
 interface Tema {
     id: number;
     nombre: string;
-    descripcion: string;
     asignatura: string;
     preguntas: Pregunta[];
     guardado: boolean;
@@ -37,7 +36,6 @@ const MOCK_TEMAS_EXISTENTES: Tema[] = [
     {
         id: 1,
         nombre: 'Cédula I - Bienes',
-        descripcion: 'Conceptos fundamentales sobre bienes muebles e inmuebles',
         asignatura: 'Derecho Civil I',
         guardado: true,
         preguntas: [
@@ -48,7 +46,6 @@ const MOCK_TEMAS_EXISTENTES: Tema[] = [
     {
         id: 2,
         nombre: 'Teoría del Delito',
-        descripcion: 'Elementos constitutivos del delito y sus clasificaciones',
         asignatura: 'Derecho Penal',
         guardado: true,
         preguntas: [
@@ -65,7 +62,6 @@ export default function GestionTemas() {
     const [temaActual, setTemaActual] = useState<Tema>({
         id: 0,
         nombre: '',
-        descripcion: '',
         asignatura: '',
         preguntas: [],
         guardado: false,
@@ -201,7 +197,6 @@ export default function GestionTemas() {
         setTemaActual({
             id: 0,
             nombre: '',
-            descripcion: '',
             asignatura: asignaturaSeleccionada?.nombre || '',
             preguntas: [],
             guardado: false,
@@ -297,7 +292,6 @@ export default function GestionTemas() {
                                                     className={`w-full text-left p-4 hover:bg-gray-50 transition ${temaSeleccionado?.id === tema.id ? 'bg-blue-50 border-l-4 border-[#003366]' : ''}`}
                                                 >
                                                     <h4 className="font-semibold text-gray-800 text-sm">{tema.nombre}</h4>
-                                                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{tema.descripcion || 'Sin descripción'}</p>
                                                     <div className="flex items-center gap-2 mt-2">
                                                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                                                             {tema.preguntas.length} preguntas
@@ -337,18 +331,6 @@ export default function GestionTemas() {
                                                 onChange={(e) => setTemaActual({ ...temaActual, nombre: e.target.value })}
                                                 className="block w-full bg-gray-50 border border-gray-200 text-gray-700 py-3 px-4 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition"
                                                 placeholder="Ej: Cédula I - Bienes"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
-                                                Descripción del Tema <span className="text-gray-400">(Opcional)</span>
-                                            </label>
-                                            <textarea
-                                                value={temaActual.descripcion}
-                                                onChange={(e) => setTemaActual({ ...temaActual, descripcion: e.target.value })}
-                                                className="block w-full bg-gray-50 border border-gray-200 text-gray-700 py-3 px-4 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition min-h-[80px] resize-y"
-                                                placeholder="Breve descripción del contenido del tema..."
                                             />
                                         </div>
 
