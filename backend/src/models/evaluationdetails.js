@@ -34,6 +34,10 @@ export const Evaluation_detail = new EntitySchema({
             type: 'float',
             nullable: true,
         },
+        created_at: {
+            type: 'timestamp',
+            createDate: true,
+        },
     },
     relations: {
         guidline: {

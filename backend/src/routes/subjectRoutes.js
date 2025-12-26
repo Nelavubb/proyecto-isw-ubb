@@ -32,4 +32,22 @@ router.get('/enrolled/:userId', async (req, res) => {
     }
 });
 
+// GET /api/subjects/by-user/:userId
+// Obtiene las asignaturas creadas por un usuario (profesor)
+router.get('/by-user/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const subjectRepository = AppDataSource.getRepository(Subject);
+        const subjects = await subjectRepository.find({
+            where: { user_id: parseInt(userId) }
+        });
+
+        res.json(subjects);
+    } catch (error) {
+        console.error("Error al obtener asignaturas por usuario:", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+});
+
 export default router;

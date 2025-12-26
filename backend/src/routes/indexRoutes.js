@@ -5,6 +5,7 @@ import subjectRoutes from './subjectRoutes.js';
 import questionRoutes from './questionRoutes.js';
 import usersRoutes from './usersRoutes.js';
 import guidelineRoutes from './guidelineRoutes.js';
+import historyRoutes from './historyRoutes.js';
 
 const router = express.Router();
 
@@ -15,5 +16,6 @@ router.use('/subjects', subjectRoutes);
 router.use('/questions', questionRoutes);
 router.use('/users', usersRoutes);
 router.use('/guidelines', guidelineRoutes);
+router.use('/history', historyRoutes);
 
 export default router;
