@@ -13,7 +13,6 @@ export const Guidline = new EntitySchema({
             type: 'varchar',
             length: 200,
             nullable: false,
-            unique: true,
         },
         theme_id: {
             type: 'int',
