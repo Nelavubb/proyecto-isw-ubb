@@ -16,6 +16,7 @@ import ThemeSelect from "./pages/ThemeSelect";
 import QuestionBank from "./pages/QuestionBank";
 import AddQuestion from "./pages/AddQuestion";
 import Comisiones from "./pages/Comisiones";
+import AddGuidelines from "./pages/AddGuidelines";
 import GestionTemas from "./pages/GestionTemas";
 import Users from "./pages/Users";
 
@@ -137,6 +138,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <Comisiones />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Crear/Editar Pauta de Evaluación */}
+          <Route
+            path="/add-guidelines"
+            element={
+              <ProtectedRoute>
+                <AddGuidelines />
               </ProtectedRoute>
             }
           />
