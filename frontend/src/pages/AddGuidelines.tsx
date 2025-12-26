@@ -273,7 +273,7 @@ export default function AddGuidelines() {
                     {/* Acciones */}
                     <div className="mt-6 flex gap-3">
                         <button
-                            onClick={() => navigate('/comisiones')}
+                            onClick={() => navigate('/comisiones?step=crear')}
                             className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
                         >
                             Cancelar
