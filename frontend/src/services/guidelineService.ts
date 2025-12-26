@@ -7,11 +7,11 @@ export interface Criterion {
 }
 
 export interface Guideline {
-    id_guidline?: number;
+    guidline_id?: number;
     name: string;
     theme_id: number;
     themeName?: string;
-    criteria?: Criterion[];
+    description?: Criterion[];
 }
 
 export const getGuidelines = async (): Promise<Guideline[]> => {
@@ -27,7 +27,7 @@ export const getGuidelineById = async (id: number): Promise<Guideline> => {
 export const createGuideline = async (guidelineData: {
     name: string;
     theme_id: number;
-    criteria: Criterion[];
+    description: Criterion[];
 }): Promise<Guideline> => {
     const response = await api.post('/guidelines', guidelineData);
     return response.data;
@@ -38,7 +38,7 @@ export const updateGuideline = async (
     guidelineData: {
         name: string;
         theme_id: number;
-        criteria: Criterion[];
+        description: Criterion[];
     }
 ): Promise<Guideline> => {
     const response = await api.put(`/guidelines/${id}`, guidelineData);
