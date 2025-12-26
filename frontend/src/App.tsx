@@ -17,6 +17,7 @@ import QuestionBank from "./pages/QuestionBank";
 import AddQuestion from "./pages/AddQuestion";
 import Comisiones from "./pages/Comisiones";
 import GestionTemas from "./pages/GestionTemas";
+import Users from "./pages/Users";
 
 // Componente para rutas protegidas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -146,6 +147,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <GestionTemas />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Gestión de Usuarios */}
+          <Route
+            path="/usuarios"
+            element={
+              <ProtectedRoute>
+                <Users />
               </ProtectedRoute>
             }
           />
