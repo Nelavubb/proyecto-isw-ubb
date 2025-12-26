@@ -18,6 +18,7 @@ import AddQuestion from "./pages/AddQuestion";
 import Comisiones from "./pages/Comisiones";
 import GestionTemas from "./pages/GestionTemas";
 import Users from "./pages/Users";
+import EditQuestion from "./pages/EditQuestion";
 import HistorySubjectSelect from "./pages/HistorySubjectSelect";
 import HistoryEvaluationList from "./pages/HistoryEvaluationList";
 import HistoryEvaluationDetail from "./pages/HistoryEvaluationDetail";
@@ -159,6 +160,16 @@ function App() {
             }
           />
 
+          {/* Modificar Pregunta */}
+          <Route
+            path="/EditQuestion/:id"
+            element={
+              <ProtectedRoute>
+                <EditQuestion />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Gestión de Comisiones */}
           <Route
             path="/comisiones"
@@ -198,4 +209,3 @@ function App() {
 }
 
 export default App;
-

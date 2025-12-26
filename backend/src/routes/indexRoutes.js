@@ -17,4 +17,3 @@ router.use('/users', usersRoutes);
 router.use('/history', historyRoutes);
 
 export default router;
-
