@@ -68,6 +68,24 @@ router.post('/create', async (req, res) => {
     }
 });
 
+// GET /api/questions/by-theme/:themeId
+router.get('/by-theme/:themeId', async (req, res) => {
+    const { themeId } = req.params;
+    try {
+        const questionRepository = AppDataSource.getRepository(Questions);
+        const questions = await questionRepository.find({
+            where: { theme_id: parseInt(themeId) },
+            relations: ['user'],
+            order: { created_at: 'DESC' }
+        });
+
+        res.json(questions);
+    } catch (error) {
+        console.error("Error al obtener preguntas por tema:", error);
+        res.status(500).json({ message: "Error interno" });
+    }
+});
+
 // GET /api/questions/:id
 router.get('/:id', async (req, res) => {
     const { id } = req.params;
