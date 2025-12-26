@@ -17,9 +17,8 @@ export const Questions = new EntitySchema({
             type: 'text',
             nullable: false,
         },
-        created_by: {
-            type: 'varchar',
-            length: 100,
+        user_id: {
+            type: 'int',
             nullable: false,
         },
         theme_id: {
@@ -37,14 +36,14 @@ export const Questions = new EntitySchema({
     },
     relations: {
         theme: {
-            target: 'theme', 
-            type: 'many-to-one', 
+            target: 'theme',
+            type: 'many-to-one',
             joinColumn: {
-                name: 'theme_id', 
+                name: 'theme_id',
             },
-            onDelete: 'RESTRICT', 
+            onDelete: 'RESTRICT',
         },
-        created_by: {   
+        user: {
             target: 'user',
             type: 'many-to-one',
             joinColumn: {

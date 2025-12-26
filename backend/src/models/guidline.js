@@ -4,7 +4,7 @@ export const Guidline = new EntitySchema({
     name: 'Guidline',
     tableName: 'guidline',
     columns: {
-        id_guidline: {
+        guidline_id: {
             type: 'int',
             primary: true,
             generated: true,
@@ -13,7 +13,6 @@ export const Guidline = new EntitySchema({
             type: 'varchar',
             length: 200,
             nullable: false,
-            unique: true,
         },
         theme_id: {
             type: 'int',
@@ -22,12 +21,12 @@ export const Guidline = new EntitySchema({
     },
     relations: {
         theme: {
-            target: 'theme', 
-            type: 'one-to-one', 
+            target: 'theme',
+            type: 'one-to-one',
             joinColumn: {
-                name: 'theme_id', 
+                name: 'theme_id',
             },
-            onDelete: 'RESTRICT', 
+            onDelete: 'RESTRICT',
         },
     },
 });
