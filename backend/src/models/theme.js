@@ -16,8 +16,8 @@ export const Theme = new EntitySchema({
             unique: true,
         },
         subject_id: {
-            type: 'text',
-            nullable: true, 
+            type: 'int',
+            nullable: true,
         },
     },
     relations: {

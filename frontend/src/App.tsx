@@ -17,12 +17,13 @@ import QuestionBank from "./pages/QuestionBank";
 import AddQuestion from "./pages/AddQuestion";
 import Comisiones from "./pages/Comisiones";
 import AddGuidelines from "./pages/AddGuidelines";
-import GestionTemas from "./pages/GestionTemas";
+import SubjectSelection from "./pages/SubjectSelection";
 import Users from "./pages/Users";
 import EditQuestion from "./pages/EditQuestion";
 import HistorySubjectSelect from "./pages/HistorySubjectSelect";
 import HistoryEvaluationList from "./pages/HistoryEvaluationList";
 import HistoryEvaluationDetail from "./pages/HistoryEvaluationDetail";
+import ThemeQuestionManager from "./pages/ThemeQuestionManager";
 
 // Componente para rutas protegidas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -196,7 +197,15 @@ function App() {
             path="/gestion-temas"
             element={
               <ProtectedRoute>
-                <GestionTemas />
+                <SubjectSelection />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-temas/:subjectId"
+            element={
+              <ProtectedRoute>
+                <ThemeQuestionManager />
               </ProtectedRoute>
             }
           />
