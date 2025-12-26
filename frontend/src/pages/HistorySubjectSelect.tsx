@@ -95,7 +95,6 @@ const HistorySubjectSelect: React.FC = () => {
                                 <div className="p-3 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
                                     {getIcon(subject.subject_name)}
                                 </div>
-
                                 {/* Texto Del contenedor*/}
                                 <div className="flex-1">
                                     <h3 className="font-bold text-gray-800 group-hover:text-[#002e5d]">
