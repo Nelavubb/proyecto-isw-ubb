@@ -1,6 +1,7 @@
 import express from 'express';
 import { AppDataSource } from '../config/database.js';
 import { Commission } from '../models/commission.js';
+import { Evaluation_detail } from '../models/evaluationdetails.js';
 
 const router = express.Router();
 
@@ -154,6 +155,8 @@ router.post('/', async (req, res) => {
             estudiantes // array de user_ids de estudiantes
         } = req.body;
 
+        console.log('Datos recibidos:', req.body);
+
         // Validaciones
         if (!commission_name || !user_id || !theme_id || !date || !time || !location) {
             return res.status(400).json({ 
@@ -173,23 +176,27 @@ router.post('/', async (req, res) => {
             location
         });
 
+        console.log('Intentando guardar comisión:', newCommission);
         const savedCommission = await commissionRepository.save(newCommission);
+        console.log('Comisión guardada:', savedCommission);
 
         // Si hay estudiantes, crear los evaluation_details para cada uno
-        if (estudiantes && estudiantes.length > 0 && guideline_id) {
-            const evaluationRepository = AppDataSource.getRepository('Evaluation_detail');
+        if (estudiantes && estudiantes.length > 0) {
+            const evaluationRepository = AppDataSource.getRepository(Evaluation_detail);
             
-            const evaluationPromises = estudiantes.map(studentId => {
-                const evaluation = evaluationRepository.create({
+            for (const studentId of estudiantes) {
+                const evaluationData = {
                     user_id: studentId,
                     commission_id: savedCommission.commission_id,
-                    guidline_id: guideline_id,
+                    guidline_id: guideline_id || null,
                     status: 'pending'
-                });
-                return evaluationRepository.save(evaluation);
-            });
-
-            await Promise.all(evaluationPromises);
+                };
+                console.log('Creando evaluation_detail:', evaluationData);
+                
+                const evaluation = evaluationRepository.create(evaluationData);
+                await evaluationRepository.save(evaluation);
+            }
+            console.log('Evaluation details creados');
         }
 
         res.status(201).json(savedCommission);
