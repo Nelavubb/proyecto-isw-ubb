@@ -23,7 +23,6 @@ export default function GestionTemas() {
             }
 
             try {
-                // Parse user.id to number as subjectService expects a number
                 const userId = parseInt(user.id);
                 const data = await getSubjectsByUser(userId);
                 setSubjects(data);
@@ -41,7 +40,6 @@ export default function GestionTemas() {
         navigate(`/gestion-asignaturas/${subjectId}`);
     };
 
-    // Helper to get random/consistent icon based on name (reused logic from SimulationSelect roughly)
     const getIcon = (name: string) => {
         if (name.includes("Penal"))
             return <Gavel className="w-6 h-6 text-[#003366]" />;

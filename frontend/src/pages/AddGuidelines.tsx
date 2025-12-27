@@ -16,11 +16,47 @@ export default function AddGuidelines() {
     const [loading, setLoading] = useState(false);
     const [loadingTemas, setLoadingTemas] = useState(true);
     const [editingGuideline, setEditingGuideline] = useState<Guideline | null>(null);
-    
+
     const [guidelineForm, setGuidelineForm] = useState({
         name: '',
         description: [{ description: '', scor_max: 0 }]
     });
+    const [criterionCharCounts, setCriterionCharCounts] = useState<number[]>([0]);
+    const [criterionErrors, setCriterionErrors] = useState<string[]>([]);
+    const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; index: number; newScore: number }>({
+        open: false,
+        index: -1,
+        newScore: 0
+    });
+
+    const CRITERION_MAX_CHARS = 500;
+    const CRITERION_MIN_CHARS = 3;
+    const SCORE_WARNING_THRESHOLD = 100;
+
+    // Validar descripción del criterio
+    const validateCriterionDescription = (text: string): string => {
+        // Mínimo 3 caracteres
+        if (text.length < CRITERION_MIN_CHARS) {
+            return `Mínimo ${CRITERION_MIN_CHARS} caracteres requeridos`;
+        }
+
+        // Solo caracteres especiales
+        if (!/[a-zA-Z0-9]/.test(text)) {
+            return 'Debe contener al menos una letra o número';
+        }
+
+        // Solo combinación de letras y caracteres especiales (sin números)
+        const hasLetters = /[a-zA-Z]/.test(text);
+        const hasNumbers = /[0-9]/.test(text);
+        const hasSpecialChars = /[^a-zA-Z0-9\s]/.test(text);
+
+        // Si solo tiene letras y caracteres especiales (sin números), es válido
+        // Si tiene solo números y caracteres especiales, es válido
+        // Si tiene letras y números, es válido
+        // Solo rechaza si tiene SOLO caracteres especiales (ya validado arriba)
+
+        return ''; // Válido
+    };
 
     useEffect(() => {
         loadTemas();
@@ -85,6 +121,8 @@ export default function AddGuidelines() {
             ...prev,
             description: [...prev.description, { description: '', scor_max: 0 }]
         }));
+        setCriterionCharCounts(prev => [...prev, 0]);
+        setCriterionErrors(prev => [...prev, '']);
     };
 
     const handleRemoveCriteria = (index: number) => {
@@ -92,10 +130,68 @@ export default function AddGuidelines() {
             ...prev,
             description: prev.description.filter((_, i) => i !== index)
         }));
+        setCriterionCharCounts(prev => prev.filter((_, i) => i !== index));
+        setCriterionErrors(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleCriterionDescriptionChange = (index: number, value: string) => {
+        // Limitar a 500 caracteres
+        if (value.length <= CRITERION_MAX_CHARS) {
+            const newCriteria = [...guidelineForm.description];
+            newCriteria[index].description = value;
+            setGuidelineForm(prev => ({ ...prev, description: newCriteria }));
+
+            const newCharCounts = [...criterionCharCounts];
+            newCharCounts[index] = value.length;
+            setCriterionCharCounts(newCharCounts);
+
+            // Validar descripción
+            const error = validateCriterionDescription(value);
+            const newErrors = [...criterionErrors];
+            if (error) {
+                newErrors[index] = error;
+            } else {
+                newErrors[index] = '';
+            }
+            setCriterionErrors(newErrors);
+        }
+    };
+
+    const handleScorMaxChange = (index: number, newScore: string) => {
+        const scoreValue = parseFloat(newScore) || 0;
+
+        // Si el puntaje es mayor que el umbral, mostrar confirmación
+        if (scoreValue > SCORE_WARNING_THRESHOLD) {
+            setConfirmDialog({
+                open: true,
+                index: index,
+                newScore: scoreValue
+            });
+        } else {
+            const newCriteria = [...guidelineForm.description];
+            newCriteria[index].scor_max = scoreValue;
+            setGuidelineForm(prev => ({ ...prev, description: newCriteria }));
+        }
+    };
+
+    const handleConfirmScore = (confirm: boolean) => {
+        if (confirm && confirmDialog.index !== -1) {
+            const newCriteria = [...guidelineForm.description];
+            newCriteria[confirmDialog.index].scor_max = confirmDialog.newScore;
+            setGuidelineForm(prev => ({ ...prev, description: newCriteria }));
+        }
+        setConfirmDialog({ open: false, index: -1, newScore: 0 });
     };
 
     const handleSaveGuideline = async () => {
         try {
+            // Validar que todos los criterios tengan descripción válida
+            const hasErrors = criterionErrors.some(error => error !== '');
+            if (hasErrors) {
+                alert('Por favor, corrige los errores en los criterios antes de guardar');
+                return;
+            }
+
             if (guidelineForm.description.some(c => !c.description || c.scor_max <= 0)) {
                 alert('Por favor, completa todos los criterios con descripción y puntaje');
                 return;
@@ -223,17 +319,27 @@ export default function AddGuidelines() {
                                                         <label className="block text-xs font-semibold text-gray-600 mb-2">
                                                             Criterio a evaluar
                                                         </label>
-                                                        <input
-                                                            type="text"
-                                                            value={criterion.description}
-                                                            onChange={(e) => {
-                                                                const newCriteria = [...guidelineForm.description];
-                                                                newCriteria[index].description = e.target.value;
-                                                                setGuidelineForm(prev => ({ ...prev, description: newCriteria }));
-                                                            }}
-                                                            placeholder="Ej: Argumentación jurídica clara"
-                                                            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
-                                                        />
+                                                        <div className="relative">
+                                                            <input
+                                                                type="text"
+                                                                value={criterion.description}
+                                                                onChange={(e) => handleCriterionDescriptionChange(index, e.target.value)}
+                                                                placeholder="Ej: Argumentación jurídica clara"
+                                                                className={`w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 ${criterionErrors[index]
+                                                                        ? 'border-red-500 focus:ring-red-500'
+                                                                        : 'border-gray-300 focus:ring-[#003366]'
+                                                                    }`}
+                                                                maxLength={CRITERION_MAX_CHARS}
+                                                            />
+                                                            <div className="absolute bottom-1 right-3 text-xs text-gray-500 font-medium">
+                                                                {criterionCharCounts[index] || 0}/{CRITERION_MAX_CHARS}
+                                                            </div>
+                                                        </div>
+                                                        {criterionErrors[index] && (
+                                                            <p className="text-red-500 text-xs mt-1">
+                                                                {criterionErrors[index]}
+                                                            </p>
+                                                        )}
                                                     </div>
 
                                                     <div>
@@ -243,11 +349,7 @@ export default function AddGuidelines() {
                                                         <input
                                                             type="number"
                                                             value={criterion.scor_max || ''}
-                                                            onChange={(e) => {
-                                                                const newCriteria = [...guidelineForm.description];
-                                                                newCriteria[index].scor_max = parseFloat(e.target.value) || 0;
-                                                                setGuidelineForm(prev => ({ ...prev, description: newCriteria }));
-                                                            }}
+                                                            onChange={(e) => handleScorMaxChange(index, e.target.value)}
                                                             placeholder="Ej: 20"
                                                             min="0"
                                                             step="0.5"
@@ -302,6 +404,50 @@ export default function AddGuidelines() {
                     </div>
                 </div>
             </main>
+
+            {/* Modal de Confirmación para Puntaje Alto */}
+            {confirmDialog.open && (
+                <div className="fixed inset-0 flex items-center justify-center z-50">
+                    <div
+                        className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
+                        onClick={() => handleConfirmScore(false)}
+                    />
+
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6 z-10 relative animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
+                                <svg className="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 0v2m0-6v2m0-4v2" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900">Puntaje elevado</h3>
+                        </div>
+
+                        <p className="text-gray-700 mb-6">
+                            Estás asignando un puntaje máximo de <span className="font-bold text-lg">{confirmDialog.newScore}</span> puntos a este criterio.
+                        </p>
+
+                        <p className="text-sm text-gray-600 mb-6">
+                            ¿Estás seguro de que quieres asignar este puntaje?
+                        </p>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => handleConfirmScore(false)}
+                                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => handleConfirmScore(true)}
+                                className="flex-1 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition font-medium"
+                            >
+                                Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <BottomNavigation />
         </div>

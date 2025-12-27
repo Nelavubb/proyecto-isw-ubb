@@ -19,6 +19,12 @@ export const getGuidelines = async (): Promise<Guideline[]> => {
     return response.data;
 };
 
+export const getGuidelinesByTheme = async (themeId: number): Promise<Guideline[]> => {
+    const response = await api.get('/guidelines');
+    const allGuidelines = response.data;
+    return allGuidelines.filter((g: Guideline) => g.theme_id === themeId);
+};
+
 export const getGuidelineById = async (id: number): Promise<Guideline> => {
     const response = await api.get(`/guidelines/${id}`);
     return response.data;

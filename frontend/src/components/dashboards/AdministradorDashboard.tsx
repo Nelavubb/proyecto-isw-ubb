@@ -3,7 +3,40 @@ import Header from '../Header.tsx';
 import BottomNavigation from '../BottomNavigation';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { createUser } from '../../services/userService';
+import { createUser, getUsers, User as ServiceUser } from '../../services/userService';
+import { createSubject } from '../../services/subjectService';
+import { Link } from 'react-router-dom';
+
+// Función para generar contraseña usando los últimos 6 dígitos del RUT
+const generatePassword = (rut: string): string => {
+  // Remover el dígito verificador (todo después del guion)
+  const rutNumbers = rut.split('-')[0];
+  // Obtener los últimos 6 dígitos
+  return rutNumbers.slice(-6);
+};
+
+// Función de validación
+const validateUserData = (data: { rut: string; user_name: string; role: string }): string | null => {
+  if (!data.rut) return 'El RUT es obligatorio';
+  if (!data.user_name) return 'El nombre de usuario es obligatorio';
+  if (!data.role) return 'El rol es obligatorio';
+
+  // Validar formato del RUT (XXX-X)
+  if (!/^[0-9]+-[0-9kK]$/.test(data.rut)) {
+    return 'El RUT debe tener el formato: solo números, un guion y el dígito verificador (número o k/K)';
+  }
+
+  // Validar nombre
+  if (data.user_name.length < 2) return 'El nombre debe tener al menos 2 caracteres';
+  if (data.user_name.length > 100) return 'El nombre no puede exceder 100 caracteres';
+
+  // Validar rol
+  if (!['Estudiante', 'Profesor', 'Administrador'].includes(data.role)) {
+    return 'El rol debe ser: Estudiante, Profesor o Administrador';
+  }
+
+  return null;
+};
 
 interface AdministradorDashboardProps {
   user: User;
@@ -12,30 +45,112 @@ interface AdministradorDashboardProps {
 const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({
+  const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [teachers, setTeachers] = useState<ServiceUser[]>([]);
+
+  const [formData, setFormData] = useState<{ rut: string; user_name: string; role: string; password: string }>({
     rut: '',
     user_name: '',
     role: '',
+    password: '',
+  });
+
+  const [subjectFormData, setSubjectFormData] = useState({
+    subject_name: '',
+    user_id: '' as number | ''
+  });
+  const [errors, setErrors] = useState<string[]>([]);
+
+  useState(() => {
+    const fetchTeachers = async () => {
+      try {
+        const users = await getUsers();
+        setTeachers(users.filter(u => u.role === 'Profesor'));
+      } catch (error) {
+        console.error("Error fetching teachers:", error);
+      }
+    };
+    fetchTeachers();
   });
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setFormData({ rut: '', user_name: '', role: '' });
+    setFormData({ rut: '', user_name: '', role: '', password: '' });
+  };
+
+  const handleCloseSubjectModal = () => {
+    setShowSubjectModal(false);
+    setSubjectFormData({ subject_name: '', user_id: '' });
+    setErrors([]);
+  };
+
+  const handleSaveSubject = async () => {
+    const trimmedName = subjectFormData.subject_name.trim();
+    const newErrors: string[] = [];
+
+    if (!trimmedName) {
+      newErrors.push('El nombre de la asignatura es obligatorio');
+    } else {
+      if (trimmedName.length < 2) {
+        newErrors.push('El nombre debe tener al menos 2 caracteres');
+      }
+      const nameRegex = /^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s-]+$/;
+      if (!nameRegex.test(trimmedName)) {
+        newErrors.push('El nombre contiene caracteres no válidos (solo letras, números, espacios y guiones)');
+      }
+    }
+
+    if (!subjectFormData.user_id) {
+      newErrors.push('Debe seleccionar un profesor');
+    }
+
+    if (newErrors.length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    try {
+      await createSubject({
+        subject_name: trimmedName,
+        user_id: Number(subjectFormData.user_id)
+      });
+      setToast({ type: 'success', text: 'Asignatura creada exitosamente' });
+      handleCloseSubjectModal();
+    } catch (error) {
+      console.error("Error saving subject:", error);
+      setToast({ type: 'error', text: 'Error al crear la asignatura' });
+    } finally {
+      setTimeout(() => setToast(null), 3000);
+    }
   };
 
   const handleSaveUser = async () => {
     try {
-      if (!formData.rut || !formData.user_name || !formData.role) {
-        alert('Por favor, completa todos los campos');
+      // Validar datos
+      const validationError = validateUserData(formData);
+      if (validationError) {
+        setToast({ type: 'error', text: validationError });
+        setTimeout(() => setToast(null), 3000);
         return;
       }
 
-      await createUser(formData);
-      alert('Usuario agregado exitosamente');
+      // Generar contraseña usando últimos 6 dígitos del RUT
+      const password = generatePassword(formData.rut);
+
+      // Crear usuario con contraseña
+      await createUser({
+        ...formData,
+        password
+      });
+
+      setToast({ type: 'success', text: 'Usuario agregado exitosamente' });
+      setTimeout(() => setToast(null), 3000);
       handleCloseModal();
     } catch (error) {
       console.error('Error al guardar usuario:', error);
-      alert('Error al guardar el usuario');
+      setToast({ type: 'error', text: 'Error al guardar el usuario' });
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
@@ -103,10 +218,10 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
         </div>
 
         {/* Gestión Rápida */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Gestión de Comisiones</h3>
-            <p className="text-gray-600 mb-4">Administra las comisiones de evaluación oral.</p>
+            <p className="text-gray-600 mb-4">Administra las comisiones de evaluación.</p>
             <div className="space-y-3">
               <button className="w-full px-4 py-3 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-left flex items-center gap-3">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,7 +242,7 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
             <h3 className="text-xl font-bold text-gray-800 mb-4">Gestión de Usuarios</h3>
             <p className="text-gray-600 mb-4">Administra estudiantes y profesores.</p>
             <div className="space-y-3">
-              <button 
+              <button
                 onClick={() => setShowModal(true)}
                 className="w-full px-4 py-3 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-left flex items-center gap-3">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -135,13 +250,39 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
                 </svg>
                 Agregar Nuevo Usuario
               </button>
-              <button 
+              <button
                 onClick={() => navigate('/usuarios')}
                 className="w-full px-4 py-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-left flex items-center gap-3">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
                 Administrar Usuarios
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Gestión de Asignaturas</h3>
+            <p className="text-gray-600 mb-4">Administra asignaturas y sus profesores.</p>
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  setErrors([]);
+                  setShowSubjectModal(true);
+                }}
+                className="w-full px-4 py-3 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-left flex items-center gap-3">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Agregar Asignatura
+              </button>
+              <button
+                onClick={() => navigate('/admin/subjects')}
+                className="w-full px-4 py-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-left flex items-center gap-3">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+                Administrar Asignaturas
               </button>
             </div>
           </div>
@@ -187,15 +328,22 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
 
       {/* Modal para agregar usuario */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 p-6">
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
+            onClick={handleCloseModal}
+          />
+
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6 z-10 relative animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-[#003366]">Agregar Nuevo Usuario</h2>
               <button
                 onClick={handleCloseModal}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
-                ×
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
@@ -260,6 +408,124 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
           </div>
         </div>
       )}
+
+      {/* Modal para agregar asignatura */}
+      {showSubjectModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
+            onClick={handleCloseSubjectModal}
+          />
+
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6 z-10 relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-[#003366]">Agregar Nueva Asignatura</h2>
+              <button
+                onClick={handleCloseSubjectModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {errors.length > 0 && (
+              <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">
+                      Se encontraron errores:
+                    </h3>
+                    <div className="mt-2 text-sm text-red-700">
+                      <ul className="list-disc pl-5 space-y-1">
+                        {errors.map((error, index) => (
+                          <li key={index}>{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Nombre de la Asignatura <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={subjectFormData.subject_name}
+                  onChange={(e) => setSubjectFormData({ ...subjectFormData, subject_name: e.target.value })}
+                  placeholder="Ej. Derecho Civil I"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Profesor Encargado <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={subjectFormData.user_id}
+                  onChange={(e) => setSubjectFormData({ ...subjectFormData, user_id: Number(e.target.value) })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                >
+                  <option value="">Seleccionar Profesor</option>
+                  {teachers.map((teacher) => (
+                    <option key={teacher.user_id} value={teacher.user_id}>
+                      {teacher.user_name} ({teacher.rut})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                onClick={handleCloseSubjectModal}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveSubject}
+                className="flex-1 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition font-medium"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {
+        toast && (
+          <div className={`fixed right-6 bottom-24 max-w-xs p-4 rounded-lg shadow-lg flex items-center gap-3 z-50 ${toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+            }`}>
+            <div className="flex-shrink-0">
+              {toast.type === 'success' && (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+              {toast.type === 'error' && (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
+            </div>
+            <p className="text-sm font-medium">{toast.text}</p>
+          </div>
+        )
+      }
 
       <BottomNavigation />
     </>

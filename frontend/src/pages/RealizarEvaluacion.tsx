@@ -1,8 +1,10 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
 import { getEvaluationsPending, updateEvaluation, completeEvaluation, EvaluationDetail } from '../services/evaluationService';
 import { getAllQuestions } from '../services/questionService';
+import { getGuidelinesByTheme } from '../services/guidelineService';
 
 type Question = { id: string; text: string; topic: string };
 
@@ -34,32 +36,96 @@ type EvaluacionPendiente = EvaluationDetail & {
 };
 
 export default function RealizacionEvaluacion() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  
+  // Obtener parámetros de la URL
+  const evaluationDetailId = searchParams.get('evaluation_detail_id');
+  const themeId = searchParams.get('theme_id');
+
   // Estados principales
-  const [evaluacionesPendientes, setEvaluacionesPendientes] = useState<EvaluacionPendiente[]>([]);
   const [evaluacionSeleccionada, setEvaluacionSeleccionada] = useState<EvaluacionPendiente | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingGuideline, setLoadingGuideline] = useState(false);
 
   // Estados de evaluación
   const [criteria, setCriteria] = useState<Criterion[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [feedback, setFeedback] = useState('');
+  const [feedbackCharCount, setFeedbackCharCount] = useState(0);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [toast, setToast] = useState<{ type: 'info' | 'success' | 'error'; text: string } | null>(null);
   const [questionBank, setQuestionBank] = useState<Question[]>([]);
 
+  const FEEDBACK_MAX_CHARS = 500;
+
   // Cargar datos al montar el componente
   useEffect(() => {
     loadData();
-  }, []);
+  }, [evaluationDetailId, themeId]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      // Cargar evaluaciones pendientes con todos sus datos relacionados
+      
+      if (!evaluationDetailId || !themeId) {
+        setToast({ type: 'error', text: 'Parámetros inválidos. Por favor, vuelve a Comisiones.' });
+        setTimeout(() => navigate('/comisiones'), 2000);
+        return;
+      }
+
+      // Cargar la evaluación específica
       const evaluaciones = await getEvaluationsPending();
-      setEvaluacionesPendientes(evaluaciones);
+      const evalBase = evaluaciones.find(e => e.evaluation_detail_id === parseInt(evaluationDetailId));
+      
+      if (!evalBase) {
+        setToast({ type: 'error', text: 'Evaluación no encontrada.' });
+        setTimeout(() => navigate('/comisiones'), 2000);
+        return;
+      }
+
+      // Castear a tipo completo
+      const evaluation = evalBase as EvaluacionPendiente;
+
+      // Cargar pauta para el tema
+      try {
+        setLoadingGuideline(true);
+        const guidelines = await getGuidelinesByTheme(parseInt(themeId));
+        if (guidelines && guidelines.length > 0) {
+          const guideline = guidelines[0];
+          // Enriquecer la evaluación con los criterios de la pauta
+          evaluation.criteria = guideline.description || [];
+          evaluation.guidline = {
+            guidline_id: guideline.guidline_id || 0,
+            name: guideline.name,
+            theme: {
+              theme_id: guideline.theme_id,
+              theme_name: ''
+            }
+          };
+        }
+      } catch (error) {
+        console.warn('No se pudo cargar la pauta:', error);
+      } finally {
+        setLoadingGuideline(false);
+      }
+
+      setEvaluacionSeleccionada(evaluation);
+
+      // Cargar criterios de la pauta
+      if (evaluation.criteria && Array.isArray(evaluation.criteria) && evaluation.criteria.length > 0) {
+        const loadedCriteria = evaluation.criteria.map((crit: any) => ({
+          criterion_id: crit.criterion_id,
+          description: crit.description,
+          scor_max: crit.scor_max || 5,
+          score: evaluation.grade ? null : null,
+        }));
+        setCriteria(loadedCriteria);
+      } else {
+        setCriteria([]);
+      }
 
       // Cargar banco de preguntas
       try {
@@ -74,40 +140,10 @@ export default function RealizacionEvaluacion() {
       }
     } catch (error) {
       console.error('Error al cargar datos:', error);
-      setToast({ type: 'error', text: 'Error al cargar evaluaciones' });
+      setToast({ type: 'error', text: 'Error al cargar la evaluación' });
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSelectEvaluacion = (evaluation: EvaluacionPendiente) => {
-    setEvaluacionSeleccionada(evaluation);
-    setFeedback(evaluation.observation || '');
-    setSaved(false);
-    setCompleted(false);
-    setCurrentQuestion(null);
-
-    // Cargar criterios de la pauta
-    if (evaluation.criteria && Array.isArray(evaluation.criteria) && evaluation.criteria.length > 0) {
-      const loadedCriteria = evaluation.criteria.map((crit: any) => ({
-        criterion_id: crit.criterion_id,
-        description: crit.description,
-        scor_max: crit.scor_max || 5,
-        score: evaluation.grade ? null : null, // Si ya existe nota, mantener vacío para re-evaluar
-      }));
-      setCriteria(loadedCriteria);
-    } else {
-      setCriteria([]);
-    }
-  };
-
-  const handleChangeEvaluation = () => {
-    setEvaluacionSeleccionada(null);
-    setCriteria([]);
-    setFeedback('');
-    setSaved(false);
-    setCompleted(false);
-    setCurrentQuestion(null);
   };
 
   const partialTotal = useMemo(() => {
@@ -149,6 +185,16 @@ export default function RealizacionEvaluacion() {
       )
     );
     setSaved(false);
+  };
+
+  const handleFeedbackChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    // Limitar a 500 caracteres
+    if (value.length <= FEEDBACK_MAX_CHARS) {
+      setFeedback(value);
+      setFeedbackCharCount(value.length);
+      setSaved(false);
+    }
   };
 
   const guardarProgreso = async () => {
@@ -212,57 +258,11 @@ export default function RealizacionEvaluacion() {
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
             <h1 className="text-2xl font-bold text-[#003366] mb-2">Realización de Evaluación</h1>
 
-            {/* Evaluaciones Pendientes List */}
-            {!evaluacionSeleccionada && (
-              <div className="mt-4">
-                <h2 className="text-lg font-semibold text-gray-700 mb-4">Comisiones Pendientes</h2>
-                {loading ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">Cargando evaluaciones...</p>
-                  </div>
-                ) : evaluacionesPendientes.length === 0 ? (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700 text-sm">
-                    No hay evaluaciones pendientes en este momento.
-                  </div>
-                ) : (
-                  <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                    {evaluacionesPendientes.map((evaluation) => (
-                      <button
-                        key={evaluation.evaluation_detail_id}
-                        onClick={() => handleSelectEvaluacion(evaluation)}
-                        className="w-full text-left px-4 py-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition flex justify-between items-start"
-                      >
-                        <div className="flex-1">
-                          <p className="font-bold text-gray-900 text-base">
-                            {evaluation.commission?.commission_name || `Comisión #${evaluation.commission_id}`}
-                          </p>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Tema: <span className="font-semibold">{evaluation.guidline?.theme?.theme_name || 'No asignado'}</span>
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Estudiante: <span className="font-semibold">{evaluation.user?.user_name || `Usuario #${evaluation.user_id}`}</span>
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            ID Evaluación: #{evaluation.evaluation_detail_id}
-                          </p>
-                        </div>
-                        <span className={`flex-shrink-0 text-xs font-bold px-3 py-1 rounded ml-4 ${
-                          evaluation.evaluation_status === 'pending'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : evaluation.evaluation_status === 'completed'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}>
-                          {evaluation.evaluation_status === 'pending' ? 'Pendiente' : 'Completada'}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+            {loading || loadingGuideline ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Cargando evaluación...</p>
               </div>
-            )}
-
-            {evaluacionSeleccionada && (
+            ) : evaluacionSeleccionada ? (
               <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-gray-600 mt-4 pt-4 border-t border-gray-200">
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wide">Comisión</p>
@@ -277,11 +277,15 @@ export default function RealizacionEvaluacion() {
                   <p className="font-bold text-gray-900">{evaluacionSeleccionada.user?.user_name || `#${evaluacionSeleccionada.user_id}`}</p>
                 </div>
                 <button
-                  onClick={handleChangeEvaluation}
+                  onClick={() => navigate('/comisiones')}
                   className="ml-auto text-blue-600 hover:text-blue-800 underline text-xs font-semibold"
                 >
-                  Cambiar evaluación
+                  Volver a Comisiones
                 </button>
+              </div>
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm mt-4">
+                No se pudo cargar la evaluación. Por favor, vuelve a Comisiones e intenta de nuevo.
               </div>
             )}
           </div>
@@ -347,16 +351,18 @@ export default function RealizacionEvaluacion() {
                 <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100 flex-1 flex flex-col">
                   <h3 className="text-lg font-bold text-[#003366] mb-2">Notas de sesión</h3>
                   <p className="text-sm text-gray-500 mb-4">Puedes tomar notas rápidas sobre el desempeño del alumno durante la exposición.</p>
-                  <textarea
-                    className="w-full border border-gray-200 rounded-lg p-3 text-sm resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-h-[300px] bg-gray-50 placeholder-gray-400 flex-1"
-                    placeholder="Escribe tus observaciones relevantes aquí..."
-                    value={feedback}
-                    onChange={(e) => {
-                      setFeedback(e.target.value);
-                      setSaved(false);
-                    }}
-                    disabled={completed}
-                  />
+                  <div className="relative flex-1 flex flex-col">
+                    <textarea
+                      className="w-full border border-gray-200 rounded-lg p-3 text-sm resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-h-[300px] bg-gray-50 placeholder-gray-400 flex-1"
+                      placeholder="Escribe tus observaciones relevantes aquí..."
+                      value={feedback}
+                      onChange={handleFeedbackChange}
+                      disabled={completed}
+                    />
+                    <div className="absolute bottom-3 right-3 text-xs text-gray-500 font-medium bg-white px-2 py-1 rounded">
+                      {feedbackCharCount}/{FEEDBACK_MAX_CHARS}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -468,16 +474,18 @@ export default function RealizacionEvaluacion() {
 
                     <div>
                       <label className="text-xs font-bold text-gray-500 mb-1 block">Observaciones para el estudiante</label>
-                      <textarea
-                        placeholder="Escribe los comentarios y recomendaciones..."
-                        className="w-full border border-gray-200 rounded-lg p-3 text-sm resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-h-[120px]"
-                        value={feedback}
-                        onChange={(e) => {
-                          setFeedback(e.target.value);
-                          setSaved(false);
-                        }}
-                        disabled={completed}
-                      />
+                      <div className="relative">
+                        <textarea
+                          placeholder="Escribe los comentarios y recomendaciones..."
+                          className="w-full border border-gray-200 rounded-lg p-3 text-sm resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-h-[120px]"
+                          value={feedback}
+                          onChange={handleFeedbackChange}
+                          disabled={completed}
+                        />
+                        <div className="absolute bottom-3 right-3 text-xs text-gray-500 font-medium bg-white px-2 py-1 rounded border border-gray-200">
+                          {feedbackCharCount}/{FEEDBACK_MAX_CHARS}
+                        </div>
+                      </div>
                     </div>
 
                     <button

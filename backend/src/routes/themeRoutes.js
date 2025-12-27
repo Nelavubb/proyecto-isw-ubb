@@ -1,6 +1,7 @@
 import express from 'express';
 import { AppDataSource } from '../config/database.js';
 import { Theme } from '../models/theme.js';
+import { createThemeValidation, updateThemeValidation } from '../validations/themeValidation.js';
 
 const router = express.Router();
 
@@ -38,7 +39,18 @@ router.get('/by-subject/:subjectId', async (req, res) => {
 
 // POST /api/theme/create
 router.post('/create', async (req, res) => {
-    const { theme_name, subject_id } = req.body;
+    // Validar datos de entrada
+    const { error, value } = createThemeValidation.validate(req.body);
+
+    if (error) {
+        return res.status(400).json({
+            message: "Error de validación",
+            errors: error.details.map(detail => detail.message)
+        });
+    }
+
+    const { theme_name, subject_id } = value;
+
     try {
         const themeRepository = AppDataSource.getRepository(Theme);
         const newTheme = themeRepository.create({
@@ -56,7 +68,19 @@ router.post('/create', async (req, res) => {
 // PUT /api/theme/update/:id
 router.put('/update/:id', async (req, res) => {
     const { id } = req.params;
-    const { theme_name } = req.body;
+
+    // Validar datos de entrada
+    const { error, value } = updateThemeValidation.validate(req.body);
+
+    if (error) {
+        return res.status(400).json({
+            message: "Error de validación",
+            errors: error.details.map(detail => detail.message)
+        });
+    }
+
+    const { theme_name } = value;
+
     try {
         const themeRepository = AppDataSource.getRepository(Theme);
         const theme = await themeRepository.findOneBy({ theme_id: parseInt(id) });

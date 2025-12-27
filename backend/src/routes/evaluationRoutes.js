@@ -1,6 +1,7 @@
 import express from 'express';
 import { AppDataSource } from '../config/database.js';
 import { Evaluation_detail } from '../models/evaluationdetails.js';
+import { createEvaluationValidation, updateEvaluationValidation } from '../validations/evaluationValidation.js';
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ router.get('/pending', async (req, res) => {
     
     const query = evaluationRepository
       .createQueryBuilder('ed')
-      .where("ed.evaluation_status = :status", { status: 'pending' })
+      .where("ed.status = :status", { status: 'pending' })
       .leftJoinAndSelect('ed.guidline', 'guidline')
       .leftJoinAndSelect('guidline.theme', 'theme');
     
@@ -92,12 +93,24 @@ router.get('/:id', async (req, res) => {
 
 /**
  * PUT /api/evaluation-details/:id
- * Actualiza una evaluación (grade, observation, evaluation_status)
+ * Actualiza una evaluación (grade, observation, status)
  */
 router.put('/:id', async (req, res) => {
   try {
+    // Validar datos de entrada
+    const { error, value } = await updateEvaluationValidation.validate(req.body, { abortEarly: false });
+    
+    if (error) {
+      return res.status(400).json({
+        error: 'Validación fallida',
+        details: error.details.map(detail => ({
+          field: detail.path.join('.'),
+          message: detail.message
+        }))
+      });
+    }
+
     const { id } = req.params;
-    const { grade, observation, evaluation_status } = req.body;
     const evaluationRepository = AppDataSource.getRepository(Evaluation_detail);
     
     const evaluation = await evaluationRepository.findOne({
@@ -109,9 +122,13 @@ router.put('/:id', async (req, res) => {
     }
     
     // Actualizar campos proporcionados
-    if (grade !== undefined) evaluation.grade = grade;
-    if (observation !== undefined) evaluation.observation = observation;
-    if (evaluation_status !== undefined) evaluation.evaluation_status = evaluation_status;
+    if (value.grade !== undefined) evaluation.grade = value.grade;
+    if (value.observation !== undefined) evaluation.observation = value.observation;
+    if (value.status !== undefined) evaluation.status = value.status;
+    if (value.question_asked !== undefined) evaluation.question_asked = value.question_asked;
+    if (value.user_id !== undefined) evaluation.user_id = value.user_id;
+    if (value.commission_id !== undefined) evaluation.commission_id = value.commission_id;
+    if (value.guidline_id !== undefined) evaluation.guidline_id = value.guidline_id;
     
     const updated = await evaluationRepository.save(evaluation);
     
@@ -137,7 +154,7 @@ router.get('/', async (req, res) => {
       .leftJoinAndSelect('guidline.theme', 'theme');
     
     if (status) {
-      query = query.where('ed.evaluation_status = :status', { status });
+      query = query.where('ed.status = :status', { status });
     }
     
     if (userId) {
