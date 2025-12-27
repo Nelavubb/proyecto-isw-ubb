@@ -36,6 +36,12 @@ export const Commission = new EntitySchema({
             length: 300,
             nullable: false,
         },
+        evaluation_group: {
+            type: 'varchar',
+            length: 100,
+            nullable: false,
+            comment: 'Identificador único para agrupar comisiones de una misma evaluación',
+        },
     },
     relations: {
         user: {
