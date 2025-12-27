@@ -204,15 +204,34 @@ export default function SubjectThemeManager() {
     };
 
     const handleAgregarPregunta = async () => {
-        if (!nuevaPregunta.texto.trim() || !nuevaPregunta.respuestaEsperada.trim()) return;
+        setErrors([]);
+        const { texto, respuestaEsperada, dificultad } = nuevaPregunta;
+        const newErrors: string[] = [];
+
+        if (!texto.trim()) newErrors.push('El texto de la pregunta es obligatorio');
+        else if (texto.length < 5) newErrors.push('El texto de la pregunta debe tener al menos 5 caracteres');
+        else if (texto.length > 500) newErrors.push('El texto de la pregunta no puede exceder los 500 caracteres');
+
+        if (!respuestaEsperada.trim()) newErrors.push('La respuesta es obligatoria');
+        else if (respuestaEsperada.length < 2) newErrors.push('La respuesta debe tener al menos 2 caracteres');
+        else if (respuestaEsperada.length > 700) newErrors.push('La respuesta no puede exceder los 700 caracteres');
+
+        if (!['easy', 'medium', 'hard'].includes(dificultad)) {
+            newErrors.push('La dificultad debe ser facil, media o dificil');
+        }
+
+        if (newErrors.length > 0) {
+            setErrors(newErrors);
+            return;
+        }
 
         try {
             const questionData = {
-                question_text: nuevaPregunta.texto,
-                answer: nuevaPregunta.respuestaEsperada,
+                question_text: texto,
+                answer: respuestaEsperada,
                 theme_id: temaActual.id,
                 user_id: user ? parseInt(user.id) : undefined,
-                difficulty: nuevaPregunta.dificultad
+                difficulty: dificultad
             };
 
             const savedQuestion = await createQuestion(questionData);
@@ -239,9 +258,13 @@ export default function SubjectThemeManager() {
 
             setNuevaPregunta({ texto: '', respuestaEsperada: '', dificultad: 'easy' });
             alert("Pregunta agregada correctamente");
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error creating question:", error);
-            alert("Error al agregar la pregunta");
+            if (error.response && error.response.status === 400 && error.response.data.errors) {
+                setErrors(error.response.data.errors);
+            } else {
+                alert("Error al agregar la pregunta");
+            }
         }
     };
 
@@ -271,6 +294,7 @@ export default function SubjectThemeManager() {
     };
 
     const handleIniciarEdicion = (pregunta: Pregunta) => {
+        setErrors([]);
         setEditandoPregunta(pregunta.id);
         setPreguntaEditada({
             texto: pregunta.texto,
@@ -280,12 +304,33 @@ export default function SubjectThemeManager() {
     };
 
     const handleGuardarEdicion = async (preguntaId: number) => {
+        setErrors([]);
+        const { texto, respuestaEsperada, dificultad } = preguntaEditada;
+        const newErrors: string[] = [];
+
+        if (!texto.trim()) newErrors.push('El texto de la pregunta es obligatorio');
+        else if (texto.length < 5) newErrors.push('El texto de la pregunta debe tener al menos 5 caracteres');
+        else if (texto.length > 500) newErrors.push('El texto de la pregunta no puede exceder los 500 caracteres');
+
+        if (!respuestaEsperada.trim()) newErrors.push('La respuesta es obligatoria');
+        else if (respuestaEsperada.length < 2) newErrors.push('La respuesta debe tener al menos 2 caracteres');
+        else if (respuestaEsperada.length > 700) newErrors.push('La respuesta no puede exceder los 700 caracteres');
+
+        if (!['easy', 'medium', 'hard'].includes(dificultad)) {
+            newErrors.push('La dificultad debe ser facil, media o dificil');
+        }
+
+        if (newErrors.length > 0) {
+            setErrors(newErrors);
+            return;
+        }
+
         try {
             const questionData = {
-                question_text: preguntaEditada.texto,
-                answer: preguntaEditada.respuestaEsperada,
+                question_text: texto,
+                answer: respuestaEsperada,
                 theme_id: temaActual.id,
-                difficulty: preguntaEditada.dificultad
+                difficulty: dificultad
             };
 
             await updateQuestion(preguntaId, questionData);
@@ -316,13 +361,18 @@ export default function SubjectThemeManager() {
             setEditandoPregunta(null);
             setPreguntaEditada({ texto: '', respuestaEsperada: '', dificultad: 'easy' });
             alert("Pregunta actualizada correctamente");
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error updating question:", error);
-            alert("Error al actualizar la pregunta");
+            if (error.response && error.response.status === 400 && error.response.data.errors) {
+                setErrors(error.response.data.errors);
+            } else {
+                alert("Error al actualizar la pregunta");
+            }
         }
     };
 
     const handleCancelarEdicion = () => {
+        setErrors([]);
         setEditandoPregunta(null);
         setPreguntaEditada({ texto: '', respuestaEsperada: '', dificultad: 'easy' });
     };
@@ -600,9 +650,15 @@ export default function SubjectThemeManager() {
                                                     type="text"
                                                     value={nuevaPregunta.texto}
                                                     onChange={(e) => setNuevaPregunta({ ...nuevaPregunta, texto: e.target.value })}
+                                                    maxLength={500}
                                                     className="block w-full bg-white border border-gray-200 text-gray-700 py-3 px-4 rounded-lg leading-tight focus:outline-none focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition"
                                                     placeholder="Escriba la pregunta..."
                                                 />
+                                                <div className="flex justify-end mt-1">
+                                                    <span className={`text-xs ${nuevaPregunta.texto.length >= 500 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+                                                        {nuevaPregunta.texto.length}/500
+                                                    </span>
+                                                </div>
                                             </div>
 
                                             <div>
@@ -627,9 +683,15 @@ export default function SubjectThemeManager() {
                                                 <textarea
                                                     value={nuevaPregunta.respuestaEsperada}
                                                     onChange={(e) => setNuevaPregunta({ ...nuevaPregunta, respuestaEsperada: e.target.value })}
+                                                    maxLength={700}
                                                     className="block w-full bg-white border border-gray-200 text-gray-700 py-3 px-4 rounded-lg leading-tight focus:outline-none focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition min-h-[80px] resize-y"
                                                     placeholder="Puntos clave de la respuesta esperada..."
                                                 />
+                                                <div className="flex justify-end mt-1">
+                                                    <span className={`text-xs ${nuevaPregunta.respuestaEsperada.length >= 700 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+                                                        {nuevaPregunta.respuestaEsperada.length}/700
+                                                    </span>
+                                                </div>
                                             </div>
 
                                             <button
@@ -708,6 +770,7 @@ export default function SubjectThemeManager() {
                                                                         type="text"
                                                                         value={preguntaEditada.texto}
                                                                         onChange={(e) => setPreguntaEditada({ ...preguntaEditada, texto: e.target.value })}
+                                                                        maxLength={500}
                                                                         className="block w-full bg-gray-50 border border-gray-200 text-gray-700 py-2 px-3 rounded-lg text-sm focus:outline-none focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition"
                                                                     />
                                                                     <select
@@ -722,8 +785,13 @@ export default function SubjectThemeManager() {
                                                                     <textarea
                                                                         value={preguntaEditada.respuestaEsperada}
                                                                         onChange={(e) => setPreguntaEditada({ ...preguntaEditada, respuestaEsperada: e.target.value })}
+                                                                        maxLength={700}
                                                                         className="block w-full bg-gray-50 border border-gray-200 text-gray-700 py-2 px-3 rounded-lg text-sm focus:outline-none focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition min-h-[60px] resize-y"
                                                                     />
+                                                                    <div className="flex justify-end gap-2 text-xs text-gray-400">
+                                                                        <span>Texto: {preguntaEditada.texto.length}/500</span>
+                                                                        <span>Respuesta: {preguntaEditada.respuestaEsperada.length}/700</span>
+                                                                    </div>
                                                                     <div className="flex gap-2">
                                                                         <button
                                                                             onClick={() => handleGuardarEdicion(pregunta.id)}
