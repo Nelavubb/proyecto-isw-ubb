@@ -9,7 +9,7 @@ export const Criterion = new EntitySchema({
             primary: true,
             generated: true,
         },
-        scor_max: {    
+        scor_max: {
             type: 'float',
             nullable: false,
         },
@@ -29,7 +29,7 @@ export const Criterion = new EntitySchema({
             joinColumn: {
                 name: 'guidline_id',
             },
-            onDelete: 'RESTRICT',
+            onDelete: 'CASCADE',
         },
     },
 });

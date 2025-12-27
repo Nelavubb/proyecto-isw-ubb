@@ -25,6 +25,12 @@ export const Questions = new EntitySchema({
             type: 'int',
             nullable: false,
         },
+        difficulty: {
+            type: 'varchar',
+            length: 20,
+            nullable: false,
+            default: 'easy',
+        },
         created_at: {
             type: 'timestamp',
             createDate: true,
@@ -32,6 +38,7 @@ export const Questions = new EntitySchema({
         updated_at: {
             type: 'timestamp',
             updateDate: true,
+            default: null,
         }
     },
     relations: {
@@ -41,7 +48,7 @@ export const Questions = new EntitySchema({
             joinColumn: {
                 name: 'theme_id',
             },
-            onDelete: 'RESTRICT',
+            onDelete: 'CASCADE',
         },
         user: {
             target: 'user',
