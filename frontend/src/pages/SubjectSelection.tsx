@@ -89,9 +89,6 @@ export default function GestionTemas() {
                                         <h3 className="font-bold text-gray-800 group-hover:text-[#002e5d]">
                                             {subject.subject_name}
                                         </h3>
-                                        <p className="text-sm text-gray-500 mt-1">
-                                            Gestionar Contenido
-                                        </p>
                                     </div>
                                     <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-[#002e5d]" />
                                 </button>
