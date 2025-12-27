@@ -664,7 +664,7 @@ export default function SubjectThemeManager() {
                                                     value={nuevaPregunta.respuestaEsperada}
                                                     onChange={(e) => setNuevaPregunta({ ...nuevaPregunta, respuestaEsperada: e.target.value })}
                                                     maxLength={700}
-                                                    className="block w-full bg-white border border-gray-200 text-gray-700 py-3 px-4 rounded-lg leading-tight focus:outline-none focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition min-h-[80px] resize-y"
+                                                    className="block w-full bg-white border border-gray-200 text-gray-700 py-3 px-4 rounded-lg leading-tight focus:outline-none focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition min-h-[80px] resize-none"
                                                     placeholder="Puntos clave de la respuesta esperada..."
                                                 />
                                                 <div className="flex justify-end mt-1">
@@ -764,7 +764,7 @@ export default function SubjectThemeManager() {
                                                                         value={preguntaEditada.respuestaEsperada}
                                                                         onChange={(e) => setPreguntaEditada({ ...preguntaEditada, respuestaEsperada: e.target.value })}
                                                                         maxLength={700}
-                                                                        className="block w-full bg-gray-50 border border-gray-200 text-gray-700 py-2 px-3 rounded-lg text-sm focus:outline-none focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition min-h-[60px] resize-y"
+                                                                        className="block w-full bg-gray-50 border border-gray-200 text-gray-700 py-2 px-3 rounded-lg text-sm focus:outline-none focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition min-h-[60px] resize-none"
                                                                     />
                                                                     <div className="flex justify-end gap-2 text-xs text-gray-400">
                                                                         <span>Texto: {preguntaEditada.texto.length}/500</span>

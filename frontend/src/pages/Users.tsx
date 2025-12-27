@@ -17,21 +17,21 @@ const validateUserData = (data: { rut: string; user_name: string; role: string }
     if (!data.rut) return 'El RUT es obligatorio';
     if (!data.user_name) return 'El nombre de usuario es obligatorio';
     if (!data.role) return 'El rol es obligatorio';
-    
+
     // Validar formato del RUT (XXX-X)
     if (!/^[0-9]+-[0-9kK]$/.test(data.rut)) {
         return 'El RUT debe tener el formato: solo números, un guion y el dígito verificador (número o k/K)';
     }
-    
+
     // Validar nombre
     if (data.user_name.length < 2) return 'El nombre debe tener al menos 2 caracteres';
     if (data.user_name.length > 100) return 'El nombre no puede exceder 100 caracteres';
-    
+
     // Validar rol
     if (!['Estudiante', 'Profesor', 'Administrador'].includes(data.role)) {
         return 'El rol debe ser: Estudiante, Profesor o Administrador';
     }
-    
+
     return null;
 };
 
@@ -102,13 +102,13 @@ export default function Users() {
 
             // Generar contraseña usando últimos 6 dígitos del RUT
             const password = generatePassword(formData.rut);
-            
+
             // Crear usuario con contraseña
             await createUser({
                 ...formData,
                 password
             });
-            
+
             setToast({ type: 'success', text: 'Usuario agregado exitosamente' });
             setTimeout(() => setToast(null), 3000);
             handleCloseModal();
@@ -170,60 +170,79 @@ export default function Users() {
                     </div>
 
                     {/* Tabla de Usuarios */}
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
                         {loading ? (
-                            <div className="p-8 text-center">
-                                <p className="text-gray-500">Cargando usuarios...</p>
+                            <div className="p-12 flex justify-center items-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#003366]"></div>
+                                <span className="ml-3 text-gray-500">Cargando usuarios...</span>
                             </div>
                         ) : users.length === 0 ? (
-                            <div className="p-8 text-center">
-                                <p className="text-gray-500">No hay usuarios registrados</p>
+                            <div className="p-12 text-center flex flex-col items-center justify-center">
+                                <svg className="w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                <h3 className="text-lg font-medium text-gray-900">No hay usuarios registrados</h3>
                             </div>
                         ) : (
-                            <>
-                                {/* Encabezado de la tabla */}
-                                <div className="grid grid-cols-12 gap-4 p-6 bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-700 uppercase">
-                                    <div className="col-span-3">RUT</div>
-                                    <div className="col-span-4">Nombre de Usuario</div>
-                                    <div className="col-span-3">Rol</div>
-                                    <div className="col-span-2 text-center">Acciones</div>
-                                </div>
-
-                                {/* Filas de la tabla */}
-                                <div className="divide-y divide-gray-100">
-                                    {users.map((user) => (
-                                        <div key={user.user_id} className="grid grid-cols-12 gap-4 p-6 items-center hover:bg-gray-50 transition-colors">
-                                            <div className="col-span-3 text-sm font-medium text-gray-900">{user.rut}</div>
-                                            <div className="col-span-4 text-sm text-gray-700">{user.user_name}</div>
-                                            <div className="col-span-3">
-                                                <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">
-                                                    {user.role}
-                                                </span>
-                                            </div>
-                                            <div className="col-span-2 flex justify-center gap-2">
-                                                <button
-                                                    onClick={() => handleOpenModal(user)}
-                                                    className="p-2 text-blue-600 hover:bg-blue-50 border border-gray-200 rounded-lg transition-colors"
-                                                    title="Editar"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteUser(user)}
-                                                    className="p-2 text-red-600 hover:bg-red-50 border border-gray-200 rounded-lg transition-colors"
-                                                    title="Eliminar"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-[#003366]">
+                                        <tr>
+                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                                                RUT
+                                            </th>
+                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                                                Nombre de Usuario
+                                            </th>
+                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                                                Rol
+                                            </th>
+                                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">
+                                                Acciones
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {users.map((user) => (
+                                            <tr key={user.user_id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm font-medium text-gray-900">{user.rut}</div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm text-gray-700">{user.user_name}</div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                                                        {user.role}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => handleOpenModal(user)}
+                                                            className="p-2 text-blue-600 hover:bg-blue-50 border border-gray-200 rounded-lg transition-colors"
+                                                            title="Editar"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                            </svg>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteUser(user)}
+                                                            className="p-2 text-red-600 hover:bg-red-50 border border-gray-200 rounded-lg transition-colors"
+                                                            title="Eliminar"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
                     </div>
 
@@ -232,17 +251,22 @@ export default function Users() {
 
             {/* Modal para agregar/editar usuario */}
             {showModal && (
-                <div className="fixed inset-0 flex items-center justify-center transition-opacity bg-gray-500 bg-opacity-75 z-50">
-                    <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 p-6">
+                <div className="fixed inset-0 flex items-center justify-center z-50">
+                    <div
+                        className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
+                        onClick={handleCloseModal}
+                    />
+
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6 z-10 relative animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-[#003366]">
                                 {editingUser ? 'Editar Usuario' : 'Agregar Nuevo Usuario'}
                             </h2>
                             <button
                                 onClick={handleCloseModal}
-                                className="text-gray-500 hover:text-gray-700 text-2xl"
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
                             >
-                                ×
+                                <span className="text-2xl">&times;</span>
                             </button>
                         </div>
 
@@ -310,8 +334,16 @@ export default function Users() {
 
             {/* Modal de confirmación para eliminar */}
             {showDeleteConfirm && userToDelete && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 p-6">
+                <div className="fixed inset-0 flex items-center justify-center z-50">
+                    <div
+                        className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
+                        onClick={() => {
+                            setShowDeleteConfirm(false);
+                            setUserToDelete(null);
+                        }}
+                    />
+
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 z-10 relative animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex justify-center mb-4">
                             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100">
                                 <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -350,9 +382,8 @@ export default function Users() {
 
             {/* Toast Notification */}
             {toast && (
-                <div className={`fixed right-6 bottom-24 max-w-xs p-4 rounded-lg shadow-lg flex items-center gap-3 z-50 ${
-                    toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-                }`}>
+                <div className={`fixed right-6 bottom-24 max-w-xs p-4 rounded-lg shadow-lg flex items-center gap-3 z-50 ${toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                    }`}>
                     <div className="flex-shrink-0">
                         {toast.type === 'success' && (
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

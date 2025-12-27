@@ -16,7 +16,7 @@ export default function AddGuidelines() {
     const [loading, setLoading] = useState(false);
     const [loadingTemas, setLoadingTemas] = useState(true);
     const [editingGuideline, setEditingGuideline] = useState<Guideline | null>(null);
-    
+
     const [guidelineForm, setGuidelineForm] = useState({
         name: '',
         description: [{ description: '', scor_max: 0 }]
@@ -140,7 +140,7 @@ export default function AddGuidelines() {
             const newCriteria = [...guidelineForm.description];
             newCriteria[index].description = value;
             setGuidelineForm(prev => ({ ...prev, description: newCriteria }));
-            
+
             const newCharCounts = [...criterionCharCounts];
             newCharCounts[index] = value.length;
             setCriterionCharCounts(newCharCounts);
@@ -159,7 +159,7 @@ export default function AddGuidelines() {
 
     const handleScorMaxChange = (index: number, newScore: string) => {
         const scoreValue = parseFloat(newScore) || 0;
-        
+
         // Si el puntaje es mayor que el umbral, mostrar confirmación
         if (scoreValue > SCORE_WARNING_THRESHOLD) {
             setConfirmDialog({
@@ -315,7 +315,7 @@ export default function AddGuidelines() {
                                         <div key={index} className="p-5 border border-gray-200 rounded-lg bg-gray-50">
                                             <div className="space-y-4">
                                                 <div className="grid grid-cols-3 gap-3 items-start">
-                                                <div className="col-span-2">
+                                                    <div className="col-span-2">
                                                         <label className="block text-xs font-semibold text-gray-600 mb-2">
                                                             Criterio a evaluar
                                                         </label>
@@ -325,11 +325,10 @@ export default function AddGuidelines() {
                                                                 value={criterion.description}
                                                                 onChange={(e) => handleCriterionDescriptionChange(index, e.target.value)}
                                                                 placeholder="Ej: Argumentación jurídica clara"
-                                                                className={`w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 ${
-                                                                    criterionErrors[index]
+                                                                className={`w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 ${criterionErrors[index]
                                                                         ? 'border-red-500 focus:ring-red-500'
                                                                         : 'border-gray-300 focus:ring-[#003366]'
-                                                                }`}
+                                                                    }`}
                                                                 maxLength={CRITERION_MAX_CHARS}
                                                             />
                                                             <div className="absolute bottom-1 right-3 text-xs text-gray-500 font-medium">
@@ -408,8 +407,13 @@ export default function AddGuidelines() {
 
             {/* Modal de Confirmación para Puntaje Alto */}
             {confirmDialog.open && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
+                <div className="fixed inset-0 flex items-center justify-center z-50">
+                    <div
+                        className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
+                        onClick={() => handleConfirmScore(false)}
+                    />
+
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6 z-10 relative animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
                                 <svg className="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -418,11 +422,11 @@ export default function AddGuidelines() {
                             </div>
                             <h3 className="text-lg font-semibold text-gray-900">Puntaje elevado</h3>
                         </div>
-                        
+
                         <p className="text-gray-700 mb-6">
                             Estás asignando un puntaje máximo de <span className="font-bold text-lg">{confirmDialog.newScore}</span> puntos a este criterio.
                         </p>
-                        
+
                         <p className="text-sm text-gray-600 mb-6">
                             ¿Estás seguro de que quieres asignar este puntaje?
                         </p>
