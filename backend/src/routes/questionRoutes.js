@@ -1,6 +1,7 @@
 import express from 'express';
 import { AppDataSource } from '../config/database.js';
 import { Questions } from '../models/questions.js';
+import { createQuestionValidation, updateQuestionValidation } from '../validations/questionValidation.js';
 
 const router = express.Router();
 
@@ -52,9 +53,21 @@ router.get('/all/:limit', async (req, res) => {
     }
 });
 
+
+
 // POST /api/questions/create
 router.post('/create', async (req, res) => {
-    const { question_text, answer, theme_id, user_id, difficulty } = req.body;
+    // Validar datos de entrada
+    const { error, value } = createQuestionValidation.validate(req.body);
+
+    if (error) {
+        return res.status(400).json({
+            message: "Error de validación",
+            errors: error.details.map(detail => detail.message)
+        });
+    }
+
+    const { question_text, answer, theme_id, user_id, difficulty } = value;
 
     try {
         const questionRepository = AppDataSource.getRepository(Questions);
@@ -76,49 +89,23 @@ router.post('/create', async (req, res) => {
     }
 });
 
-// GET /api/questions/by-theme/:themeId
-router.get('/by-theme/:themeId', async (req, res) => {
-    const { themeId } = req.params;
-    try {
-        const questionRepository = AppDataSource.getRepository(Questions);
-        const questions = await questionRepository.find({
-            where: { theme_id: parseInt(themeId) },
-            relations: ['user'],
-            order: { created_at: 'DESC' }
-        });
-
-        res.json(questions);
-    } catch (error) {
-        console.error("Error al obtener preguntas por tema:", error);
-        res.status(500).json({ message: "Error interno" });
-    }
-});
-
-// GET /api/questions/:id
-router.get('/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        const questionRepository = AppDataSource.getRepository(Questions);
-        const question = await questionRepository.findOne({
-            where: { id_question: parseInt(id) },
-            relations: ['user']
-        });
-
-        if (!question) {
-            return res.status(404).json({ message: "Pregunta no encontrada" });
-        }
-
-        res.json(question);
-    } catch (error) {
-        console.error("Error al obtener la pregunta:", error);
-        res.status(500).json({ message: "Error interno" });
-    }
-});
+// ... (other routes)
 
 // PUT /api/questions/update/:id
 router.put('/update/:id', async (req, res) => {
     const { id } = req.params;
-    const { question_text, answer, theme_id, difficulty } = req.body;
+
+    // Validar datos de entrada
+    const { error, value } = updateQuestionValidation.validate(req.body);
+
+    if (error) {
+        return res.status(400).json({
+            message: "Error de validación",
+            errors: error.details.map(detail => detail.message)
+        });
+    }
+
+    const { question_text, answer, theme_id, difficulty } = value;
 
     try {
         const questionRepository = AppDataSource.getRepository(Questions);
@@ -130,9 +117,9 @@ router.put('/update/:id', async (req, res) => {
             return res.status(404).json({ message: "Pregunta no encontrada" });
         }
 
-        question.question_text = question_text;
-        question.answer = answer;
-        question.theme_id = theme_id;
+        if (question_text) question.question_text = question_text;
+        if (answer) question.answer = answer;
+        if (theme_id) question.theme_id = theme_id;
         if (difficulty) question.difficulty = difficulty;
         question.updated_at = new Date(); // Manually update timestamp
 
