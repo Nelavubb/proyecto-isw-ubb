@@ -128,4 +128,44 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+// GET /api/users/students/by-subject/:subjectId
+// Obtiene todos los estudiantes inscritos en una asignatura específica
+router.get('/students/by-subject/:subjectId', async (req, res) => {
+    try {
+        const { subjectId } = req.params;
+        
+        const users = await userRepository()
+            .createQueryBuilder('user')
+            .innerJoin(
+                'student_subject',
+                'ss',
+                'ss.user_id = user.user_id'
+            )
+            .where('ss.subject_id = :subjectId', { subjectId })
+            .andWhere('ss.status = :status', { status: 'active' })
+            .andWhere('user.role = :role', { role: 'estudiante' })
+            .select(['user.user_id', 'user.rut', 'user.user_name'])
+            .getMany();
+
+        res.json(users);
+    } catch (error) {
+        console.error('Error fetching students by subject:', error);
+        res.status(500).json({ error: 'Error al obtener estudiantes', details: error.message });
+    }
+});
+
+// GET /api/users/students
+// Obtiene todos los usuarios con rol estudiante
+router.get('/students', async (req, res) => {
+    try {
+        const students = await userRepository().find({
+            where: { role: 'estudiante' },
+            select: ['user_id', 'rut', 'user_name']
+        });
+        res.json(students);
+    } catch (error) {
+        res.status(500).json({ error: 'Error al obtener estudiantes', details: error.message });
+    }
+});
+
 export default router;
