@@ -4,36 +4,37 @@ import BottomNavigation from '../BottomNavigation';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { createUser } from '../../services/userService';
+import { Link } from 'react-router-dom';
 
 // Función para generar contraseña usando los últimos 6 dígitos del RUT
 const generatePassword = (rut: string): string => {
-    // Remover el dígito verificador (todo después del guion)
-    const rutNumbers = rut.split('-')[0];
-    // Obtener los últimos 6 dígitos
-    return rutNumbers.slice(-6);
+  // Remover el dígito verificador (todo después del guion)
+  const rutNumbers = rut.split('-')[0];
+  // Obtener los últimos 6 dígitos
+  return rutNumbers.slice(-6);
 };
 
 // Función de validación
 const validateUserData = (data: { rut: string; user_name: string; role: string }): string | null => {
-    if (!data.rut) return 'El RUT es obligatorio';
-    if (!data.user_name) return 'El nombre de usuario es obligatorio';
-    if (!data.role) return 'El rol es obligatorio';
-    
-    // Validar formato del RUT (XXX-X)
-    if (!/^[0-9]+-[0-9kK]$/.test(data.rut)) {
-        return 'El RUT debe tener el formato: solo números, un guion y el dígito verificador (número o k/K)';
-    }
-    
-    // Validar nombre
-    if (data.user_name.length < 2) return 'El nombre debe tener al menos 2 caracteres';
-    if (data.user_name.length > 100) return 'El nombre no puede exceder 100 caracteres';
-    
-    // Validar rol
-    if (!['Estudiante', 'Profesor', 'Administrador'].includes(data.role)) {
-        return 'El rol debe ser: Estudiante, Profesor o Administrador';
-    }
-    
-    return null;
+  if (!data.rut) return 'El RUT es obligatorio';
+  if (!data.user_name) return 'El nombre de usuario es obligatorio';
+  if (!data.role) return 'El rol es obligatorio';
+
+  // Validar formato del RUT (XXX-X)
+  if (!/^[0-9]+-[0-9kK]$/.test(data.rut)) {
+    return 'El RUT debe tener el formato: solo números, un guion y el dígito verificador (número o k/K)';
+  }
+
+  // Validar nombre
+  if (data.user_name.length < 2) return 'El nombre debe tener al menos 2 caracteres';
+  if (data.user_name.length > 100) return 'El nombre no puede exceder 100 caracteres';
+
+  // Validar rol
+  if (!['Estudiante', 'Profesor', 'Administrador'].includes(data.role)) {
+    return 'El rol debe ser: Estudiante, Profesor o Administrador';
+  }
+
+  return null;
 };
 
 interface AdministradorDashboardProps {
@@ -68,13 +69,13 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
 
       // Generar contraseña usando últimos 6 dígitos del RUT
       const password = generatePassword(formData.rut);
-      
+
       // Crear usuario con contraseña
       await createUser({
         ...formData,
         password
       });
-      
+
       setToast({ type: 'success', text: 'Usuario agregado exitosamente' });
       setTimeout(() => setToast(null), 3000);
       handleCloseModal();
@@ -173,7 +174,7 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
             <h3 className="text-xl font-bold text-gray-800 mb-4">Gestión de Usuarios</h3>
             <p className="text-gray-600 mb-4">Administra estudiantes y profesores.</p>
             <div className="space-y-3">
-              <button 
+              <button
                 onClick={() => setShowModal(true)}
                 className="w-full px-4 py-3 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-left flex items-center gap-3">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -181,7 +182,7 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
                 </svg>
                 Agregar Nuevo Usuario
               </button>
-              <button 
+              <button
                 onClick={() => navigate('/usuarios')}
                 className="w-full px-4 py-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-left flex items-center gap-3">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -189,6 +190,23 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
                 </svg>
                 Administrar Usuarios
               </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h3 className="text-xl font-bold text-gray-800 mb-4">Gestionar Asignaturas</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <div className="flex items-center gap-3">
+                <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-gray-800 font-medium">Agregar y administrar asignaturas.</span>
+              </div>
+              <Link to="/admin/subjects" className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm">
+                Administrar
+              </Link>
             </div>
           </div>
         </div>
@@ -309,9 +327,8 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
 
       {/* Toast Notification */}
       {toast && (
-        <div className={`fixed right-6 bottom-24 max-w-xs p-4 rounded-lg shadow-lg flex items-center gap-3 z-50 ${
-          toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-        }`}>
+        <div className={`fixed right-6 bottom-24 max-w-xs p-4 rounded-lg shadow-lg flex items-center gap-3 z-50 ${toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+          }`}>
           <div className="flex-shrink-0">
             {toast.type === 'success' && (
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
