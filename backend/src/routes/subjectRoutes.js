@@ -2,6 +2,7 @@ import express from 'express';
 import { AppDataSource } from '../config/database.js';
 import { Subject } from '../models/subject.js';
 import { Student_Subject } from '../models/studentsubject.js';
+import { createSubjectValidation, updateSubjectValidation } from '../validations/subjectValidation.js';
 
 const router = express.Router();
 
@@ -68,13 +69,11 @@ router.get('/', async (req, res) => {
 // POST /api/subjects
 // Crea una nueva asignatura
 router.post('/', async (req, res) => {
-    const { subject_name, user_id } = req.body;
-
-    if (!subject_name || !user_id) {
-        return res.status(400).json({ message: "Nombre de asignatura y profesor son obligatorios" });
-    }
-
     try {
+        // Validar datos de entrada
+        await createSubjectValidation.validateAsync(req.body);
+
+        const { subject_name, user_id } = req.body;
         const subjectRepository = AppDataSource.getRepository(Subject);
 
         // Verificar si ya existe
@@ -91,6 +90,9 @@ router.post('/', async (req, res) => {
         await subjectRepository.save(newSubject);
         res.status(201).json(newSubject);
     } catch (error) {
+        if (error.isJoi) {
+            return res.status(400).json({ message: error.details[0].message });
+        }
         console.error("Error al crear asignatura:", error);
         res.status(500).json({ message: "Error interno del servidor" });
     }
@@ -100,9 +102,12 @@ router.post('/', async (req, res) => {
 // Actualiza una asignatura existente
 router.put('/:id', async (req, res) => {
     const { id } = req.params;
-    const { subject_name, user_id } = req.body;
 
     try {
+        // Validar datos de entrada
+        await updateSubjectValidation.validateAsync(req.body);
+
+        const { subject_name, user_id } = req.body;
         const subjectRepository = AppDataSource.getRepository(Subject);
         const subject = await subjectRepository.findOne({ where: { subject_id: parseInt(id) } });
 
@@ -116,6 +121,9 @@ router.put('/:id', async (req, res) => {
         await subjectRepository.save(subject);
         res.json(subject);
     } catch (error) {
+        if (error.isJoi) {
+            return res.status(400).json({ message: error.details[0].message });
+        }
         console.error("Error al actualizar asignatura:", error);
         res.status(500).json({ message: "Error interno del servidor" });
     }
