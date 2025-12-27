@@ -38,6 +38,12 @@ export const Evaluation_detail = new EntitySchema({
             type: 'timestamp',
             createDate: true,
         },
+        evaluation_status: {
+            type: 'varchar',
+            length: 50,
+            nullable: false,
+            default: 'pending',
+        }
     },
     relations: {
         guidline: {

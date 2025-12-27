@@ -1,328 +1,509 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
+import { getEvaluationsPending, updateEvaluation, completeEvaluation, EvaluationDetail } from '../services/evaluationService';
+import { getAllQuestions } from '../services/questionService';
 
 type Question = { id: string; text: string; topic: string };
+
 type Criterion = {
-  id: string;
-  name: string;
+  criterion_id: number;
   description: string;
-  maxScore: number;
+  scor_max: number;
   score: number | null;
 };
 
+type EvaluacionPendiente = EvaluationDetail & {
+  user?: {
+    user_id: number;
+    user_name: string;
+  };
+  commission?: {
+    commission_id: number;
+    commission_name: string;
+  };
+  guidline?: {
+    guidline_id: number;
+    name: string;
+    theme?: {
+      theme_id: number;
+      theme_name: string;
+    };
+  };
+  criteria?: any[];
+};
+
 export default function RealizacionEvaluacion() {
-  // Mock context data (replace with props / API calls)
-  const student = { name: 'María Pérez', id: 'A2025', topic: 'Derecho Civil - Contratos' };
-  const evaluation = { id: 'EV-101', name: 'Oral - Contratos' };
+  // Estados principales
+  const [evaluacionesPendientes, setEvaluacionesPendientes] = useState<EvaluacionPendiente[]>([]);
+  const [evaluacionSeleccionada, setEvaluacionSeleccionada] = useState<EvaluacionPendiente | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const questionBank: Question[] = [
-    { id: 'q1', text: 'Explique los elementos esenciales de un contrato.', topic: 'Derecho Civil - Contratos' },
-    { id: 'q2', text: '¿Qué es la lesión y cómo se prueba?', topic: 'Derecho Civil - Contratos' },
-    { id: 'q3', text: 'Diferencie error, dolo y fuerza mayor en los contratos.', topic: 'Derecho Civil - Contratos' },
-    { id: 'q4', text: 'Análisis de cláusula abusiva en contratos de adhesión.', topic: 'Derecho Civil - Contratos' },
-  ];
-
-  // Inicializar pauta (viene de otra fuente en producción)
-  const [criteria, setCriteria] = useState<Criterion[]>([
-    { id: 'c1', name: 'Claridad expositiva', description: 'Orden y claridad en la respuesta', maxScore: 3, score: null },
-    { id: 'c2', name: 'Rigor jurídico', description: 'Uso correcto de normas y doctrina', maxScore: 4, score: null },
-    { id: 'c3', name: 'Aplicación de casos', description: 'Capacidad de aplicar normas a supuestos', maxScore: 3, score: null },
-  ]);
-
+  // Estados de evaluación
+  const [criteria, setCriteria] = useState<Criterion[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [feedback, setFeedback] = useState('');
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [toast, setToast] = useState<{ type: 'info' | 'success' | 'error'; text: string } | null>(null);
+  const [questionBank, setQuestionBank] = useState<Question[]>([]);
+
+  // Cargar datos al montar el componente
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      // Cargar evaluaciones pendientes con todos sus datos relacionados
+      const evaluaciones = await getEvaluationsPending();
+      setEvaluacionesPendientes(evaluaciones);
+
+      // Cargar banco de preguntas
+      try {
+        const allQuestions = await getAllQuestions(1000);
+        setQuestionBank(allQuestions.map(q => ({
+          id: String(q.id_question),
+          text: q.question_text,
+          topic: q.theme_id ? String(q.theme_id) : 'Unknown'
+        })));
+      } catch (error) {
+        console.warn('No se pudieron cargar las preguntas:', error);
+      }
+    } catch (error) {
+      console.error('Error al cargar datos:', error);
+      setToast({ type: 'error', text: 'Error al cargar evaluaciones' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectEvaluacion = (evaluation: EvaluacionPendiente) => {
+    setEvaluacionSeleccionada(evaluation);
+    setFeedback(evaluation.observation || '');
+    setSaved(false);
+    setCompleted(false);
+    setCurrentQuestion(null);
+
+    // Cargar criterios de la pauta
+    if (evaluation.criteria && Array.isArray(evaluation.criteria) && evaluation.criteria.length > 0) {
+      const loadedCriteria = evaluation.criteria.map((crit: any) => ({
+        criterion_id: crit.criterion_id,
+        description: crit.description,
+        scor_max: crit.scor_max || 5,
+        score: evaluation.grade ? null : null, // Si ya existe nota, mantener vacío para re-evaluar
+      }));
+      setCriteria(loadedCriteria);
+    } else {
+      setCriteria([]);
+    }
+  };
+
+  const handleChangeEvaluation = () => {
+    setEvaluacionSeleccionada(null);
+    setCriteria([]);
+    setFeedback('');
+    setSaved(false);
+    setCompleted(false);
+    setCurrentQuestion(null);
+  };
 
   const partialTotal = useMemo(() => {
-    return criteria.reduce((s, c) => s + (c.score ?? 0), 0);
+    return criteria.reduce((sum, c) => sum + (c.score ?? 0), 0);
   }, [criteria]);
 
   const maxTotal = useMemo(() => {
-    return criteria.reduce((s, c) => s + c.maxScore, 0);
+    return criteria.reduce((sum, c) => sum + c.scor_max, 0);
   }, [criteria]);
 
-  function generateRandomQuestion() {
-    const pool = questionBank.filter((q) => q.topic === student.topic);
+  const pautaExiste = evaluacionSeleccionada && evaluacionSeleccionada.criteria && evaluacionSeleccionada.criteria.length > 0;
+
+  const generateRandomQuestion = () => {
+    if (!evaluacionSeleccionada?.guidline?.theme?.theme_name) {
+      setToast({ type: 'error', text: 'No hay tema asociado a esta evaluación.' });
+      return;
+    }
+
+    const themeName = evaluacionSeleccionada.guidline.theme.theme_name;
+    const pool = questionBank.filter((q) => q.topic === themeName);
+
     if (pool.length === 0) {
       setToast({ type: 'error', text: 'No hay preguntas para el tema asignado.' });
       return;
     }
+
     const q = pool[Math.floor(Math.random() * pool.length)];
     setCurrentQuestion(q);
     setToast({ type: 'info', text: 'Pregunta generada.' });
     setTimeout(() => setToast(null), 2500);
-  }
+  };
 
-  function ActualizarPuntaje(index: number, value: number | '') {
+  const updateCriteriaScore = (index: number, value: number | '') => {
     setCriteria((prev) =>
       prev.map((c, i) =>
         i === index
-          ? { ...c, score: value === '' ? null : Math.max(0, Math.min(c.maxScore, Number(value))) }
+          ? { ...c, score: value === '' ? null : Math.max(0, Math.min(c.scor_max, Number(value))) }
           : c
       )
     );
     setSaved(false);
-  }
+  };
 
-  function guardarProgreso() {
-    setSaving(true);
-    // Simular petición
-    setTimeout(() => {
-      setSaving(false);
+  const guardarProgreso = async () => {
+    if (!evaluacionSeleccionada) return;
+
+    try {
+      setSaving(true);
+      const totalGrade = criteria.reduce((sum, c) => sum + (c.score || 0), 0);
+
+      await updateEvaluation(evaluacionSeleccionada.evaluation_detail_id, {
+        grade: totalGrade,
+        observation: feedback,
+      });
+
       setSaved(true);
       setToast({ type: 'success', text: 'Progreso guardado.' });
-      setTimeout(() => setToast(null), 2500);
-    }, 900);
-  }
+      setTimeout(() => setSaved(false), 3000);
+    } catch (error) {
+      setToast({ type: 'error', text: 'Error al guardar progreso' });
+      console.error('Error saving progress:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  function finalizeEvaluacion() {
-    // Validación básica: todos los criterios deben tener un score numérico
+  const finalizeEvaluacion = async () => {
     const incomplete = criteria.some((c) => c.score === null);
     if (incomplete) {
       setToast({ type: 'error', text: 'Complete todos los criterios antes de finalizar.' });
       setTimeout(() => setToast(null), 2500);
       return;
     }
-    setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
+
+    if (!evaluacionSeleccionada) return;
+
+    try {
+      setSaving(true);
+      const totalGrade = criteria.reduce((sum, c) => sum + (c.score || 0), 0);
+
+      await completeEvaluation(evaluacionSeleccionada.evaluation_detail_id);
+
       setCompleted(true);
-      setToast({ type: 'success', text: `Evaluación completada. Nota final: ${partialTotal}/${maxTotal}` });
+      setToast({ type: 'success', text: `Evaluación completada. Nota final: ${totalGrade}/${maxTotal}` });
       setTimeout(() => setToast(null), 3000);
-    }, 1100);
-  }
+    } catch (error) {
+      setToast({ type: 'error', text: 'Error al finalizar evaluación' });
+      console.error('Error finalizing evaluation:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header variant="default" title="Facultad de Derecho" />
 
-      {/* Main Container */}
       <main className="flex-1 z-10 w-full px-4 sm:px-6 lg:px-8 pt-28 pb-24">
         <div className="max-w-7xl mx-auto space-y-6">
 
           {/* Top Header Card */}
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
             <h1 className="text-2xl font-bold text-[#003366] mb-2">Realización de Evaluación</h1>
-            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">
-              <p>Evaluación de <span className="font-bold text-gray-900">{student.name}</span></p>
-              <span className="text-gray-300">•</span>
-              <p>Tema: <span className="font-bold text-gray-900">{student.topic}</span></p>
-              <span className="text-gray-300">•</span>
-              <p>Asignatura: <span className="font-bold text-gray-900">Derecho Civil I</span></p>
-            </div>
+
+            {/* Evaluaciones Pendientes List */}
+            {!evaluacionSeleccionada && (
+              <div className="mt-4">
+                <h2 className="text-lg font-semibold text-gray-700 mb-4">Comisiones Pendientes</h2>
+                {loading ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">Cargando evaluaciones...</p>
+                  </div>
+                ) : evaluacionesPendientes.length === 0 ? (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700 text-sm">
+                    No hay evaluaciones pendientes en este momento.
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                    {evaluacionesPendientes.map((evaluation) => (
+                      <button
+                        key={evaluation.evaluation_detail_id}
+                        onClick={() => handleSelectEvaluacion(evaluation)}
+                        className="w-full text-left px-4 py-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition flex justify-between items-start"
+                      >
+                        <div className="flex-1">
+                          <p className="font-bold text-gray-900 text-base">
+                            {evaluation.commission?.commission_name || `Comisión #${evaluation.commission_id}`}
+                          </p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Tema: <span className="font-semibold">{evaluation.guidline?.theme?.theme_name || 'No asignado'}</span>
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Estudiante: <span className="font-semibold">{evaluation.user?.user_name || `Usuario #${evaluation.user_id}`}</span>
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            ID Evaluación: #{evaluation.evaluation_detail_id}
+                          </p>
+                        </div>
+                        <span className={`flex-shrink-0 text-xs font-bold px-3 py-1 rounded ml-4 ${
+                          evaluation.evaluation_status === 'pending'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : evaluation.evaluation_status === 'completed'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {evaluation.evaluation_status === 'pending' ? 'Pendiente' : 'Completada'}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {evaluacionSeleccionada && (
+              <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-gray-600 mt-4 pt-4 border-t border-gray-200">
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Comisión</p>
+                  <p className="font-bold text-gray-900">{evaluacionSeleccionada.commission?.commission_name || `#${evaluacionSeleccionada.commission_id}`}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Tema</p>
+                  <p className="font-bold text-gray-900">{evaluacionSeleccionada.guidline?.theme?.theme_name || 'No asignado'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Estudiante</p>
+                  <p className="font-bold text-gray-900">{evaluacionSeleccionada.user?.user_name || `#${evaluacionSeleccionada.user_id}`}</p>
+                </div>
+                <button
+                  onClick={handleChangeEvaluation}
+                  className="ml-auto text-blue-600 hover:text-blue-800 underline text-xs font-semibold"
+                >
+                  Cambiar evaluación
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {evaluacionSeleccionada && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            {/* Left Column */}
-            <div className="flex flex-col gap-6">
+              {/* Left Column */}
+              <div className="flex flex-col gap-6">
 
-              {/* Datos y Pregunta */}
-              <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
-                <h2 className="text-lg font-bold text-[#003366] mb-4">Datos de la evaluación</h2>
+                {/* Datos y Pregunta */}
+                <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+                  <h2 className="text-lg font-bold text-[#003366] mb-4">Datos de la evaluación</h2>
 
-                <div className="grid grid-cols-2 gap-6 mb-8">
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">ID Evaluación</p>
-                    <p className="font-medium text-gray-900 mt-1">{evaluation.id}</p>
+                  <div className="grid grid-cols-2 gap-6 mb-8">
+                    <div>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">ID Evaluación</p>
+                      <p className="font-medium text-gray-900 mt-1">#{evaluacionSeleccionada.evaluation_detail_id}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Estudiante</p>
+                      <p className="font-medium text-gray-900 mt-1">{evaluacionSeleccionada.user?.user_name || `#${evaluacionSeleccionada.user_id}`}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Alumno</p>
-                    <p className="font-medium text-gray-900 mt-1">{student.name}</p>
-                  </div>
-                </div>
 
-                <div className="border-t border-gray-100 pt-6">
-                  <h3 className="text-lg font-bold text-[#003366] mb-2">Pregunta asignada</h3>
-                  {currentQuestion ? (
-                    <div className="space-y-4">
-                      <p className="text-gray-700 leading-relaxed text-sm">
-                        {currentQuestion.text}
+                  <div className="border-t border-gray-100 pt-6">
+                    <h3 className="text-lg font-bold text-[#003366] mb-2">Pregunta asignada</h3>
+                    {currentQuestion ? (
+                      <div className="space-y-4">
+                        <p className="text-gray-700 leading-relaxed text-sm">
+                          {currentQuestion.text}
+                        </p>
+                        <div className="flex justify-end">
+                          <button
+                            onClick={generateRandomQuestion}
+                            className="text-xs text-gray-500 underline hover:text-indigo-600 transition-colors"
+                          >
+                            Cambiar pregunta
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 mb-4">
+                        Aún no se ha generado una pregunta. Presiona "Generar pregunta" para obtener una del banco.
                       </p>
-                      <div className="flex justify-end">
-                        <button
-                          onClick={generateRandomQuestion}
-                          className="text-xs text-gray-500 underline hover:text-indigo-600 transition-colors"
-                        >
-                          Cambiar pregunta
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-500 mb-4">
-                      Aún no se ha generado una pregunta. Presiona "Generar pregunta" para obtener una del banco.
-                    </p>
-                  )}
+                    )}
 
-                  {!currentQuestion && (
-                    <button
-                      onClick={generateRandomQuestion}
-                      className="inline-flex px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm"
-                    >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                      Generar pregunta
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Notas de sesión */}
-              <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100 flex-1 flex flex-col">
-                <h3 className="text-lg font-bold text-[#003366] mb-2">Notas de sesión</h3>
-                <p className="text-sm text-gray-500 mb-4">Puedes tomar notas rápidas sobre el desempeño del alumno durante la exposición.</p>
-                <textarea
-                  className="w-full border border-gray-200 rounded-lg p-3 text-sm resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-h-[300px] bg-gray-50 placeholder-gray-400 flex-1"
-                  placeholder="Escribe tus observaciones relevantes aquí..."
-                  value={feedback}
-                  onChange={(e) => { setFeedback(e.target.value); setSaved(false); }}
-                  disabled={completed}
-                />
-              </div>
-            </div>
-
-            {/* Right Column */}
-            <div className="space-y-6">
-
-              {/* Pauta de Evaluación */}
-              <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-bold text-[#003366]">Pauta de Evaluación</h3>
-                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full">
-                    Total parcial: {partialTotal}/{maxTotal}
-                  </span>
-                </div>
-
-                <div className="space-y-8">
-                  {criteria.map((c, i) => (
-                    <div key={c.id}>
-                      <div className="flex justify-between items-baseline mb-2">
-                        <div>
-                          <p className="font-bold text-gray-800 text-sm">{c.name}</p>
-                          <p className="text-xs text-gray-500">{c.description}</p>
-                        </div>
-                        <span className="text-xs text-gray-400 font-medium">Máx: {c.maxScore}</span>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        {/* Custom Slider */}
-                        <div className="relative w-full h-2 bg-gray-200 rounded-full">
-                          <div
-                            className="absolute h-full bg-[#003366] rounded-full"
-                            style={{ width: `${((c.score || 0) / c.maxScore) * 100}%` }}
-                          ></div>
-                          <input
-                            type="range"
-                            min={0}
-                            max={c.maxScore}
-                            step={1}
-                            value={c.score || 0}
-                            onChange={(e) => ActualizarPuntaje(i, Number(e.target.value))}
-                            className="absolute w-full h-full opacity-0 cursor-pointer"
-                            disabled={completed}
-                          />
-                          {/* Thumb visual indicator could be added here if customized completely */}
-                          <div
-                            className="absolute w-4 h-4 bg-[#003366] rounded-full top-1/2 transform -translate-y-1/2 -ml-2 pointer-events-none transition-all"
-                            style={{ left: `${((c.score || 0) / c.maxScore) * 100}%` }}
-                          ></div>
-                        </div>
-
-                        <input
-                          type="number"
-                          min={0}
-                          max={c.maxScore}
-                          value={c.score === null ? '' : c.score}
-                          onChange={(e) => ActualizarPuntaje(i, e.target.value === '' ? '' : Number(e.target.value))}
-                          disabled={completed}
-                          className="w-16 border border-gray-200 rounded-md py-1 px-2 text-center text-sm font-medium focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-center gap-3 mt-8 pt-6 border-t border-gray-100">
-                  <button
-                    onClick={guardarProgreso}
-                    disabled={saving || completed}
-                    className="px-4 py-2 bg-white border border-[#003366] text-[#003366] font-bold rounded-lg hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm"
-                  >
-                    Guardar progreso
-                  </button>
-                  <button
-                    onClick={finalizeEvaluacion}
-                    disabled={saving || completed}
-                    className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm"
-                  >
-                    Finalizar evaluación
-                  </button>
-                </div>
-                <p className="text-center text-xs text-gray-400 mt-3">
-                  Puedes guardar la pauta ahora y completar la nota y retroalimentación más tarde.
-                </p>
-              </div>
-
-              {/* Nota y Retroalimentación */}
-              <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
-                <h3 className="text-lg font-bold text-[#003366] mb-4">Nota y retroalimentación final</h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-bold text-gray-500 mb-1 block">Nota (automática desde la pauta)</label>
-                    <div className="w-full border border-gray-200 rounded-lg px-4 py-2 bg-gray-50 text-gray-700 font-medium">
-                      {partialTotal} / {maxTotal}
-                    </div>
+                    {!currentQuestion && (
+                      <button
+                        onClick={generateRandomQuestion}
+                        className="inline-flex px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm items-center justify-center gap-2 text-sm"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Generar pregunta
+                      </button>
+                    )}
                   </div>
+                </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-gray-500 mb-1 block">Retroalimentación para el alumno</label>
-                    <textarea
-                      placeholder="Escribe los comentarios finales..."
-                      className="w-full border border-gray-200 rounded-lg p-3 text-sm resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-h-[100px]"
-                      value={feedback} // Note: This shares state with top textarea as per original code behavior for simplicity, or could be separate.
-                      // Based on original code, 'feedback' state was shared. I'll keep it shared or should I separate?
-                      // The logical flow suggests 2 distinct fields: "Session Notes" (private?) vs "Final Feedback" (public?). 
-                      // For this refactor I will create a new state for final feedback or re-use 'feedback' for now to match logic.
-                      // Ideally they are separate. I will assume they are intended to be separate in a full app but here I might reuse or add state.
-                      // Let's create a new state for 'finalFeedback' to avoid confusion if user types in both. 
-                      // Wait, I can't add state inside this return block replacement.
-                      // I will reuse 'feedback' for "Retroalimentación" and use a new generic text for the top one?
-                      // Actually, the original code had "Notas de sesión" textarea bound to `feedback`.
-                      // And "Retroalimentación para el alumno" textarea ALSO bound to `feedback`.
-                      // So they were mirrored. I will keep it mirrored to preserve logic, or check line 34.
-                      onChange={(e) => { setFeedback(e.target.value); setSaved(false); }}
-                      disabled={completed}
-                    />
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      if (!completed) {
-                        setToast({ type: 'error', text: 'Finalice la evaluación antes de registrar la nota definitiva.' });
-                        setTimeout(() => setToast(null), 2500);
-                        return;
-                      }
-                      setToast({ type: 'success', text: 'Nota y retroalimentación registradas.' });
-                      setTimeout(() => setToast(null), 2500);
+                {/* Notas de sesión */}
+                <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100 flex-1 flex flex-col">
+                  <h3 className="text-lg font-bold text-[#003366] mb-2">Notas de sesión</h3>
+                  <p className="text-sm text-gray-500 mb-4">Puedes tomar notas rápidas sobre el desempeño del alumno durante la exposición.</p>
+                  <textarea
+                    className="w-full border border-gray-200 rounded-lg p-3 text-sm resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-h-[300px] bg-gray-50 placeholder-gray-400 flex-1"
+                    placeholder="Escribe tus observaciones relevantes aquí..."
+                    value={feedback}
+                    onChange={(e) => {
+                      setFeedback(e.target.value);
+                      setSaved(false);
                     }}
-                    className="mx-auto px-4 py-2 bg-[#E67E22] text-white font-bold rounded-lg hover:bg-[#D35400] transition shadow-sm flex items-center justify-center gap-2 text-sm"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                    </svg>
-                    Registrar nota y retroalimentación
-                  </button>
+                    disabled={completed}
+                  />
                 </div>
               </div>
 
+              {/* Right Column */}
+              <div className="space-y-6">
+
+                {/* Status de Pauta */}
+                {!pautaExiste && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-orange-700 text-sm">
+                    <p className="font-semibold">⚠️ No hay pauta de evaluación</p>
+                    <p className="mt-1">No existe una pauta asociada a esta evaluación. Crea una en la sección de Comisiones para poder calificar.</p>
+                  </div>
+                )}
+
+                {/* Pauta de Evaluación */}
+                {pautaExiste && (
+                  <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h3 className="text-lg font-bold text-[#003366]">Pauta de Evaluación</h3>
+                        <p className="text-xs text-gray-500 mt-1">{evaluacionSeleccionada.guidline?.name}</p>
+                      </div>
+                      <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full">
+                        Nota: {partialTotal}/{maxTotal}
+                      </span>
+                    </div>
+
+                    <div className="space-y-8">
+                      {criteria.map((c, i) => (
+                        <div key={c.criterion_id}>
+                          <div className="flex justify-between items-baseline mb-2">
+                            <div className="flex-1">
+                              <p className="font-bold text-gray-800 text-sm">{c.description}</p>
+                            </div>
+                            <span className="text-xs text-gray-400 font-medium ml-2">Máx: {c.scor_max}</span>
+                          </div>
+
+                          <div className="flex items-center gap-4">
+                            {/* Slider */}
+                            <div className="relative w-full h-2 bg-gray-200 rounded-full">
+                              <div
+                                className="absolute h-full bg-[#003366] rounded-full"
+                                style={{ width: `${((c.score || 0) / c.scor_max) * 100}%` }}
+                              ></div>
+                              <input
+                                type="range"
+                                min={0}
+                                max={c.scor_max}
+                                step={1}
+                                value={c.score || 0}
+                                onChange={(e) => updateCriteriaScore(i, Number(e.target.value))}
+                                className="absolute w-full h-full opacity-0 cursor-pointer"
+                                disabled={completed}
+                              />
+                              <div
+                                className="absolute w-4 h-4 bg-[#003366] rounded-full top-1/2 transform -translate-y-1/2 -ml-2 pointer-events-none transition-all"
+                                style={{ left: `${((c.score || 0) / c.scor_max) * 100}%` }}
+                              ></div>
+                            </div>
+
+                            {/* Input de puntaje */}
+                            <input
+                              type="number"
+                              min={0}
+                              max={c.scor_max}
+                              value={c.score === null ? '' : c.score}
+                              onChange={(e) => updateCriteriaScore(i, e.target.value === '' ? '' : Number(e.target.value))}
+                              disabled={completed}
+                              className="w-16 border border-gray-200 rounded-md py-1 px-2 text-center text-sm font-medium focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-center gap-3 mt-8 pt-6 border-t border-gray-100">
+                      <button
+                        onClick={guardarProgreso}
+                        disabled={saving || completed}
+                        className="px-4 py-2 bg-white border border-[#003366] text-[#003366] font-bold rounded-lg hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Guardar progreso
+                      </button>
+                      <button
+                        onClick={finalizeEvaluacion}
+                        disabled={saving || completed}
+                        className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Finalizar evaluación
+                      </button>
+                    </div>
+                    <p className="text-center text-xs text-gray-400 mt-3">
+                      Puedes guardar la pauta ahora y completar la retroalimentación más tarde.
+                    </p>
+                  </div>
+                )}
+
+                {/* Retroalimentación */}
+                <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+                  <h3 className="text-lg font-bold text-[#003366] mb-4">Retroalimentación</h3>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 mb-1 block">Nota final (automática desde la pauta)</label>
+                      <div className="w-full border border-gray-200 rounded-lg px-4 py-2 bg-gray-50 text-gray-700 font-bold text-lg">
+                        {pautaExiste ? `${partialTotal} / ${maxTotal}` : 'N/A'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 mb-1 block">Observaciones para el estudiante</label>
+                      <textarea
+                        placeholder="Escribe los comentarios y recomendaciones..."
+                        className="w-full border border-gray-200 rounded-lg p-3 text-sm resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-h-[120px]"
+                        value={feedback}
+                        onChange={(e) => {
+                          setFeedback(e.target.value);
+                          setSaved(false);
+                        }}
+                        disabled={completed}
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        if (!completed) {
+                          setToast({ type: 'error', text: 'Finalice la evaluación antes de registrar la retroalimentación.' });
+                          setTimeout(() => setToast(null), 2500);
+                          return;
+                        }
+                        setToast({ type: 'success', text: 'Retroalimentación registrada.' });
+                        setTimeout(() => setToast(null), 2500);
+                      }}
+                      disabled={!completed}
+                      className="w-full px-4 py-2 bg-[#E67E22] text-white font-bold rounded-lg hover:bg-[#D35400] transition shadow-sm flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                      </svg>
+                      Registrar retroalimentación
+                    </button>
+                  </div>
+                </div>
+
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </main>
 
