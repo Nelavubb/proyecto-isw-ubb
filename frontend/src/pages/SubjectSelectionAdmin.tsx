@@ -15,7 +15,6 @@ export default function SubjectSelectionAdmin() {
     const [showModal, setShowModal] = useState(false);
     const [teachers, setTeachers] = useState<User[]>([]);
 
-    // Form state
     const [newSubjectName, setNewSubjectName] = useState('');
     const [selectedTeacherId, setSelectedTeacherId] = useState<number | ''>('');
     const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
@@ -52,7 +51,7 @@ export default function SubjectSelectionAdmin() {
     };
 
     const handleEditClick = (e: React.MouseEvent, subject: Subject) => {
-        e.stopPropagation(); // Prevent navigation
+        e.stopPropagation();
         setEditingSubject(subject);
         setNewSubjectName(subject.subject_name);
         setSelectedTeacherId(subject.user_id);
@@ -66,14 +65,32 @@ export default function SubjectSelectionAdmin() {
         setEditingSubject(null);
         setToast(null);
     };
-
     const handleSaveSubject = async () => {
-        if (!newSubjectName.trim()) {
+        const trimmedName = newSubjectName.trim();
+        if (!trimmedName) {
             setToast({ type: 'error', text: 'El nombre de la asignatura es obligatorio' });
             return;
         }
+
+        if (trimmedName.length < 2) {
+            setToast({ type: 'error', text: 'El nombre debe tener al menos 2 caracteres' });
+            return;
+        }
+
+        const nameRegex = /^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s-]+$/;
+        if (!nameRegex.test(trimmedName)) {
+            setToast({ type: 'error', text: 'El nombre contiene caracteres no válidos (solo letras, números, espacios y guiones)' });
+            return;
+        }
+
         if (!selectedTeacherId) {
             setToast({ type: 'error', text: 'Debe seleccionar un profesor' });
+            return;
+        }
+
+        const isValidTeacher = teachers.some(t => t.user_id === Number(selectedTeacherId));
+        if (!isValidTeacher) {
+            setToast({ type: 'error', text: 'El profesor seleccionado no es válido' });
             return;
         }
 
@@ -93,10 +110,9 @@ export default function SubjectSelectionAdmin() {
             }
 
             handleCloseModal();
-            // Override closing toast clearing for success message
             setToast({ type: 'success', text: editingSubject ? 'Asignatura actualizada exitosamente' : 'Asignatura creada exitosamente' });
 
-            fetchData(); // Refresh list
+            fetchData();
         } catch (error) {
             console.error("Error saving subject:", error);
             setToast({ type: 'error', text: 'Error al guardar la asignatura' });
@@ -105,7 +121,6 @@ export default function SubjectSelectionAdmin() {
         }
     };
 
-    // Helper to get random/consistent icon based on name
     const getIcon = (name: string) => {
         if (name.includes("Penal")) return <Gavel className="w-6 h-6 text-[#003366]" />;
         if (name.includes("Constitucional")) return <Landmark className="w-6 h-6 text-[#003366]" />;
@@ -120,7 +135,6 @@ export default function SubjectSelectionAdmin() {
             <main className="flex-1 z-10 w-full px-4 sm:px-6 lg:px-8 pt-28 pb-24">
                 <div className="max-w-6xl mx-auto space-y-6">
 
-                    {/* Header Section */}
                     <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[#003366] flex justify-between items-center">
                         <div>
                             <h1 className="text-2xl font-bold text-[#003366] mb-1">Gestión de Asignaturas (Admin)</h1>
@@ -158,8 +172,6 @@ export default function SubjectSelectionAdmin() {
                                         <h3 className="font-bold text-gray-800">
                                             {subject.subject_name}
                                         </h3>
-                                        {/* Display Teacher Name if available (would need relation in backend or map efficiently) */}
-                                        {/* Assuming subject objects might eventually have user relation, currently backend find returns relations: ['user'] */}
                                         {(subject as any).user && (
                                             <p className="text-xs text-gray-500 mt-1">
                                                 Prof. {(subject as any).user.user_name}
@@ -187,16 +199,13 @@ export default function SubjectSelectionAdmin() {
                 </div>
             </main>
 
-            {/* Modal - Transparent Background as requested */}
             {showModal && (
                 <div className="fixed inset-0 flex items-center justify-center z-50">
-                    {/* Backdrop */}
                     <div
                         className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
                         onClick={handleCloseModal}
                     />
 
-                    {/* Modal Content */}
                     <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6 z-10 relative animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-[#003366]">
@@ -219,6 +228,8 @@ export default function SubjectSelectionAdmin() {
                                     type="text"
                                     value={newSubjectName}
                                     onChange={(e) => setNewSubjectName(e.target.value)}
+                                    maxLength={300}
+                                    minLength={2}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003366] focus:border-transparent outline-none transition-all"
                                     placeholder="Ej. Derecho Civil I"
                                 />

@@ -6,7 +6,6 @@ import { getSubjectsByUser } from '../services/subjectService';
 import { getThemesBySubject, createTheme, updateTheme, deleteTheme } from '../services/themeService';
 import { getQuestionsByTheme, createQuestion, updateQuestion, deleteQuestion } from '../services/questionService';
 
-// Interfaces matching backend/services roughly, or keeping local for now if migrating
 interface Pregunta {
     id: number;
     texto: string;
@@ -35,7 +34,6 @@ export default function SubjectThemeManager() {
     const [subjectName, setSubjectName] = useState<string>('');
     const [loading, setLoading] = useState(true);
 
-    // Estado del tema actual
     const [temaActual, setTemaActual] = useState<LocalTheme>({
         id: 0,
         nombre: '',
@@ -44,17 +42,14 @@ export default function SubjectThemeManager() {
         guardado: false,
     });
 
-    // Estado para temas existentes
     const [temasExistentes, setTemasExistentes] = useState<LocalTheme[]>([]);
 
-    // Estado para nueva pregunta
     const [nuevaPregunta, setNuevaPregunta] = useState({
         texto: '',
         respuestaEsperada: '',
         dificultad: 'easy',
     });
 
-    // Estado para edición de pregunta
     const [editandoPregunta, setEditandoPregunta] = useState<number | null>(null);
     const [preguntaEditada, setPreguntaEditada] = useState({
         texto: '',
@@ -70,10 +65,8 @@ export default function SubjectThemeManager() {
         { value: 50, label: '50' },
     ];
 
-    // Estado para ver tema existente
     const [temaSeleccionado, setTemaSeleccionado] = useState<LocalTheme | null>(null);
 
-    // Estado para paginación
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
     const [difficultyFilter, setDifficultyFilter] = useState('all');
@@ -84,7 +77,6 @@ export default function SubjectThemeManager() {
             if (!subjectId || !user) return;
 
             try {
-                // 1. Fetch Subject Info
                 const userId = parseInt(user.id);
                 const subjects = await getSubjectsByUser(userId);
                 const currentSubject = subjects.find(s => s.subject_id === parseInt(subjectId));
@@ -93,14 +85,11 @@ export default function SubjectThemeManager() {
                     setSubjectName(currentSubject.subject_name);
                     setTemaActual(prev => ({ ...prev, asignatura: currentSubject.subject_name }));
 
-                    // 2. Fetch Themes for this Subject
                     const apiThemes = await getThemesBySubject(parseInt(subjectId));
 
-                    // 3. Fetch Questions for each Theme (to get the count and data)
                     const themesWithQuestions = await Promise.all(apiThemes.map(async (theme) => {
                         const questions = await getQuestionsByTheme(theme.theme_id);
 
-                        // Map API Question to Local Pregunta Interface
                         const mappedQuestions: Pregunta[] = questions.map(q => ({
                             id: q.id_question,
                             texto: q.question_text,
@@ -134,11 +123,10 @@ export default function SubjectThemeManager() {
         fetchSubjectDetails();
     }, [subjectId, navigate, user, authLoading]);
 
-    // Estado para errores de validación
     const [errors, setErrors] = useState<string[]>([]);
 
     const handleGuardarTema = async () => {
-        setErrors([]); // Limpiar errores previos
+        setErrors([]);
         const nombre = temaActual.nombre.trim();
         const newErrors: string[] = [];
 
@@ -166,7 +154,6 @@ export default function SubjectThemeManager() {
 
         try {
             if (temaActual.guardado && temaActual.id !== 0) {
-                // Update existing theme
                 await updateTheme(temaActual.id, { theme_name: nombre });
 
                 const themeUpdated = { ...temaActual, nombre: nombre };
@@ -174,7 +161,6 @@ export default function SubjectThemeManager() {
                 setTemaActual(themeUpdated);
                 alert("Tema actualizado correctamente");
             } else {
-                // Create new theme
                 const newTheme = await createTheme({
                     theme_name: nombre,
                     subject_id: parseInt(subjectId!)
@@ -251,7 +237,6 @@ export default function SubjectThemeManager() {
 
             setTemaActual(temaActualizado);
 
-            // Si el tema está guardado (siempre debería estarlo si estamos agregando preguntas a él), actualizamos la lista global
             setTemasExistentes(temasExistentes.map(t =>
                 t.id === temaActual.id ? temaActualizado : t
             ));
@@ -410,13 +395,8 @@ export default function SubjectThemeManager() {
         });
     };
 
-    // Filter themes by subject name (using mock logic for now to match existing structure)
-    // Since we fetch by subject ID, all themes in temasExistentes belong to this subject.
-    // Filter themes by subject name (using mock logic for now to match existing structure)
-    // Since we fetch by subject ID, all themes in temasExistentes belong to this subject.
     const temasDeAsignatura = temasExistentes;
 
-    // Logic for pagination
     const filteredQuestions = temaActual.preguntas.filter(p =>
         difficultyFilter === 'all' ? true : p.dificultad === difficultyFilter
     );
@@ -433,7 +413,6 @@ export default function SubjectThemeManager() {
         setCurrentPage(1);
     };
 
-    // Reset page when theme or filter changes
     useEffect(() => {
         setCurrentPage(1);
     }, [temaActual.id, difficultyFilter]);
@@ -453,7 +432,6 @@ export default function SubjectThemeManager() {
             <main className="flex-1 z-10 w-full px-4 sm:px-6 lg:px-8 pt-28 pb-24">
                 <div className="max-w-6xl mx-auto space-y-6">
 
-                    {/* Back Button */}
                     <button
                         onClick={() => navigate('/gestion-asignaturas')}
                         className="flex items-center text-gray-500 hover:text-[#003366] transition mb-4"
@@ -464,7 +442,6 @@ export default function SubjectThemeManager() {
                         Volver a Asignaturas
                     </button>
 
-                    {/* Header Section */}
                     <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[#003366]">
                         <h1 className="text-2xl font-bold text-[#003366] mb-1">Gestión de Temas: {subjectName}</h1>
                         <p className="text-sm text-gray-500">
@@ -474,7 +451,6 @@ export default function SubjectThemeManager() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                        {/* Sidebar - Temas Existentes */}
                         <div className="lg:col-span-1">
                             <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
                                 <div className="p-4 bg-gray-50 border-b border-gray-100">
@@ -542,10 +518,8 @@ export default function SubjectThemeManager() {
                             </div>
                         </div>
 
-                        {/* Panel Principal */}
                         <div className="lg:col-span-2 space-y-6">
 
-                            {/* Panel de Creación/Edición de Tema */}
                             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="p-2 bg-[#003366] rounded-lg">
@@ -559,7 +533,6 @@ export default function SubjectThemeManager() {
                                 </div>
 
                                 <div className="space-y-4">
-                                    {/* Error Alert Box */}
                                     {errors.length > 0 && (
                                         <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
                                             <div className="flex">
@@ -624,7 +597,6 @@ export default function SubjectThemeManager() {
                                 </div>
                             </div>
 
-                            {/* Módulo Banco de Preguntas (solo si el tema está guardado) */}
                             {temaActual.guardado && (
                                 <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
                                     <div className="p-6 border-b border-gray-100">
@@ -640,7 +612,6 @@ export default function SubjectThemeManager() {
                                             </div>
                                         </div>
 
-                                        {/* Formulario de Ingreso Rápido */}
                                         <div className="bg-gray-50 rounded-lg p-4 space-y-4">
                                             <div>
                                                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
@@ -707,7 +678,6 @@ export default function SubjectThemeManager() {
                                         </div>
                                     </div>
 
-                                    {/* Listado de Preguntas */}
                                     <div className="p-6">
                                         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                                             <h3 className="font-bold text-gray-800">Preguntas Agregadas</h3>
@@ -764,7 +734,6 @@ export default function SubjectThemeManager() {
                                                             className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition bg-white"
                                                         >
                                                             {editandoPregunta === pregunta.id ? (
-                                                                // Modo Edición
                                                                 <div className="space-y-3">
                                                                     <input
                                                                         type="text"
@@ -808,7 +777,6 @@ export default function SubjectThemeManager() {
                                                                     </div>
                                                                 </div>
                                                             ) : (
-                                                                // Modo Vista
                                                                 <>
                                                                     <div className="flex items-start justify-between gap-4">
                                                                         <div className="flex-1 min-w-0">
