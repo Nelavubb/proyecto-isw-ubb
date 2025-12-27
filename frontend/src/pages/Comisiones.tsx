@@ -41,9 +41,9 @@ interface Evaluacion {
 
 // Mock Data
 const MOCK_TEMAS: Tema[] = [
-    { id: 1, nombre: 'Teoría de la ley', asignatura: 'Derecho Civil I'},
-    { id: 2, nombre: 'Acto Jurídico', asignatura: 'Derecho Civil I'},
-    { id: 3, nombre: 'Bases de la Institcionalidad', asignatura: 'Derecho Constitucional'},
+    { id: 1, nombre: 'Teoría de la ley', asignatura: 'Derecho Civil I' },
+    { id: 2, nombre: 'Acto Jurídico', asignatura: 'Derecho Civil I' },
+    { id: 3, nombre: 'Bases de la Institcionalidad', asignatura: 'Derecho Constitucional' },
     { id: 4, nombre: 'Derechos Fundamentales', asignatura: 'Derecho Constitucional' },
 ];
 
@@ -127,16 +127,16 @@ const MOCK_EVALUACIONES: Evaluacion[] = [
 export default function Comisiones() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    
+
     // Leer parámetro step de la URL
     const step = searchParams.get('step');
-    
+
     // Estado para controlar la vista actual: 'lista' o 'crear'
     const [vistaActual, setVistaActual] = useState<'lista' | 'crear'>(step === 'crear' ? 'crear' : 'lista');
-    
+
     // Estado para las evaluaciones
     const [evaluaciones, setEvaluaciones] = useState<Evaluacion[]>(MOCK_EVALUACIONES);
-    
+
     // Estado para las pautas
     const [pautas, setPautas] = useState<Guideline[]>([]);
     const [loadingPautas, setLoadingPautas] = useState(false);
@@ -179,7 +179,7 @@ export default function Comisiones() {
         const temaId = parseInt(e.target.value);
         const tema = MOCK_TEMAS.find(t => t.id === temaId) || null;
         setTemaSeleccionado(tema);
-        
+
         // Buscar si existe pauta para este tema
         if (tema) {
             const pauta = pautas.find(p => p.theme_id === tema.id);
@@ -309,7 +309,7 @@ export default function Comisiones() {
                             </div>
                             <button
                                 onClick={handleCrearEvaluacion}
-                                className="inline-flex items-center px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm font-medium shadow-sm"
+                                className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm"
                             >
                                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -366,7 +366,7 @@ export default function Comisiones() {
                                                     {getEstadoBadge(evaluacion.estado)}
                                                 </div>
                                                 <p className="text-sm text-gray-600 mb-3">{evaluacion.tema.asignatura}</p>
-                                                
+
                                                 <div className="flex flex-wrap gap-4 text-sm text-gray-500">
                                                     <div className="flex items-center gap-1">
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
