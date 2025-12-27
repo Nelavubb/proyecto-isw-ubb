@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getSubjectsByUser, Subject } from '../services/subjectService';
-import { getThemesBySubject, Theme, createTheme, updateTheme, deleteTheme } from '../services/themeService';
-import { getQuestionsByTheme, createQuestion } from '../services/questionService';
+import { getSubjectsByUser } from '../services/subjectService';
+import { getThemesBySubject, createTheme, updateTheme, deleteTheme } from '../services/themeService';
+import { getQuestionsByTheme, createQuestion, updateQuestion, deleteQuestion } from '../services/questionService';
 
 // Interfaces matching backend/services roughly, or keeping local for now if migrating
 interface Pregunta {
@@ -12,6 +12,8 @@ interface Pregunta {
     texto: string;
     respuestaEsperada: string;
     fechaCreacion: string;
+    fechaModificacion?: string;
+    dificultad: string;
 }
 
 interface LocalTheme {
@@ -49,6 +51,7 @@ export default function SubjectThemeManager() {
     const [nuevaPregunta, setNuevaPregunta] = useState({
         texto: '',
         respuestaEsperada: '',
+        dificultad: 'easy',
     });
 
     // Estado para edición de pregunta
@@ -56,6 +59,7 @@ export default function SubjectThemeManager() {
     const [preguntaEditada, setPreguntaEditada] = useState({
         texto: '',
         respuestaEsperada: '',
+        dificultad: 'easy',
     });
 
     const ITEMS_PER_PAGE_OPTIONS = [
@@ -72,6 +76,7 @@ export default function SubjectThemeManager() {
     // Estado para paginación
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
+    const [difficultyFilter, setDifficultyFilter] = useState('all');
 
     useEffect(() => {
         const fetchSubjectDetails = async () => {
@@ -100,7 +105,9 @@ export default function SubjectThemeManager() {
                             id: q.id_question,
                             texto: q.question_text,
                             respuestaEsperada: q.answer,
-                            fechaCreacion: q.created_at ? new Date(q.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+                            fechaCreacion: q.created_at ? new Date(q.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                            fechaModificacion: q.updated_at ? new Date(q.updated_at).toISOString().split('T')[0] : undefined,
+                            dificultad: q.difficulty || 'easy'
                         }));
 
                         return {
@@ -172,7 +179,8 @@ export default function SubjectThemeManager() {
                 question_text: nuevaPregunta.texto,
                 answer: nuevaPregunta.respuestaEsperada,
                 theme_id: temaActual.id,
-                user_id: user ? parseInt(user.id) : undefined
+                user_id: user ? parseInt(user.id) : undefined,
+                difficulty: nuevaPregunta.dificultad
             };
 
             const savedQuestion = await createQuestion(questionData);
@@ -182,6 +190,7 @@ export default function SubjectThemeManager() {
                 texto: savedQuestion.question_text,
                 respuestaEsperada: savedQuestion.answer,
                 fechaCreacion: savedQuestion.created_at ? new Date(savedQuestion.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                dificultad: savedQuestion.difficulty || 'easy'
             };
 
             const temaActualizado = {
@@ -196,7 +205,7 @@ export default function SubjectThemeManager() {
                 t.id === temaActual.id ? temaActualizado : t
             ));
 
-            setNuevaPregunta({ texto: '', respuestaEsperada: '' });
+            setNuevaPregunta({ texto: '', respuestaEsperada: '', dificultad: 'easy' });
             alert("Pregunta agregada correctamente");
         } catch (error) {
             console.error("Error creating question:", error);
@@ -204,18 +213,28 @@ export default function SubjectThemeManager() {
         }
     };
 
-    const handleEliminarPregunta = (preguntaId: number) => {
-        const temaActualizado = {
-            ...temaActual,
-            preguntas: temaActual.preguntas.filter(p => p.id !== preguntaId),
-        };
+    const handleEliminarPregunta = async (preguntaId: number) => {
+        if (!window.confirm('¿Está seguro de que desea eliminar esta pregunta?')) return;
 
-        setTemaActual(temaActualizado);
+        try {
+            await deleteQuestion(preguntaId);
 
-        if (temaActual.guardado) {
-            setTemasExistentes(temasExistentes.map(t =>
-                t.id === temaActual.id ? temaActualizado : t
-            ));
+            const temaActualizado = {
+                ...temaActual,
+                preguntas: temaActual.preguntas.filter(p => p.id !== preguntaId),
+            };
+
+            setTemaActual(temaActualizado);
+
+            if (temaActual.guardado) {
+                setTemasExistentes(temasExistentes.map(t =>
+                    t.id === temaActual.id ? temaActualizado : t
+                ));
+            }
+            alert("Pregunta eliminada correctamente");
+        } catch (error) {
+            console.error("Error deleting question:", error);
+            alert("Error al eliminar la pregunta");
         }
     };
 
@@ -224,34 +243,56 @@ export default function SubjectThemeManager() {
         setPreguntaEditada({
             texto: pregunta.texto,
             respuestaEsperada: pregunta.respuestaEsperada,
+            dificultad: pregunta.dificultad
         });
     };
 
-    const handleGuardarEdicion = (preguntaId: number) => {
-        const temaActualizado = {
-            ...temaActual,
-            preguntas: temaActual.preguntas.map(p =>
-                p.id === preguntaId
-                    ? { ...p, texto: preguntaEditada.texto, respuestaEsperada: preguntaEditada.respuestaEsperada }
-                    : p
-            ),
-        };
+    const handleGuardarEdicion = async (preguntaId: number) => {
+        try {
+            const questionData = {
+                question_text: preguntaEditada.texto,
+                answer: preguntaEditada.respuestaEsperada,
+                theme_id: temaActual.id,
+                difficulty: preguntaEditada.dificultad
+            };
 
-        setTemaActual(temaActualizado);
+            await updateQuestion(preguntaId, questionData);
 
-        if (temaActual.guardado) {
-            setTemasExistentes(temasExistentes.map(t =>
-                t.id === temaActual.id ? temaActualizado : t
-            ));
+            const temaActualizado = {
+                ...temaActual,
+                preguntas: temaActual.preguntas.map(p =>
+                    p.id === preguntaId
+                        ? {
+                            ...p,
+                            texto: preguntaEditada.texto,
+                            respuestaEsperada: preguntaEditada.respuestaEsperada,
+                            dificultad: preguntaEditada.dificultad,
+                            fechaModificacion: new Date().toISOString().split('T')[0]
+                        }
+                        : p
+                ),
+            };
+
+            setTemaActual(temaActualizado);
+
+            if (temaActual.guardado) {
+                setTemasExistentes(temasExistentes.map(t =>
+                    t.id === temaActual.id ? temaActualizado : t
+                ));
+            }
+
+            setEditandoPregunta(null);
+            setPreguntaEditada({ texto: '', respuestaEsperada: '', dificultad: 'easy' });
+            alert("Pregunta actualizada correctamente");
+        } catch (error) {
+            console.error("Error updating question:", error);
+            alert("Error al actualizar la pregunta");
         }
-
-        setEditandoPregunta(null);
-        setPreguntaEditada({ texto: '', respuestaEsperada: '' });
     };
 
     const handleCancelarEdicion = () => {
         setEditandoPregunta(null);
-        setPreguntaEditada({ texto: '', respuestaEsperada: '' });
+        setPreguntaEditada({ texto: '', respuestaEsperada: '', dificultad: 'easy' });
     };
 
     const handleSeleccionarTema = (tema: LocalTheme) => {
@@ -292,10 +333,14 @@ export default function SubjectThemeManager() {
     const temasDeAsignatura = temasExistentes;
 
     // Logic for pagination
+    const filteredQuestions = temaActual.preguntas.filter(p =>
+        difficultyFilter === 'all' ? true : p.dificultad === difficultyFilter
+    );
+
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = temaActual.preguntas.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(temaActual.preguntas.length / itemsPerPage);
+    const currentItems = filteredQuestions.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredQuestions.length / itemsPerPage);
 
     const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
@@ -304,10 +349,10 @@ export default function SubjectThemeManager() {
         setCurrentPage(1);
     };
 
-    // Reset page when theme changes
+    // Reset page when theme or filter changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [temaActual.id]);
+    }, [temaActual.id, difficultyFilter]);
 
     if (loading) {
         return (
@@ -489,6 +534,21 @@ export default function SubjectThemeManager() {
 
                                             <div>
                                                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                                                    Dificultad
+                                                </label>
+                                                <select
+                                                    value={nuevaPregunta.dificultad}
+                                                    onChange={(e) => setNuevaPregunta({ ...nuevaPregunta, dificultad: e.target.value })}
+                                                    className="block w-full bg-white border border-gray-200 text-gray-700 py-3 px-4 rounded-lg leading-tight focus:outline-none focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition"
+                                                >
+                                                    <option value="easy">Fácil</option>
+                                                    <option value="medium">Media</option>
+                                                    <option value="hard">Difícil</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
                                                     Respuesta Esperada / Pauta de Corrección <span className="text-red-500">*</span>
                                                 </label>
                                                 <textarea
@@ -519,8 +579,22 @@ export default function SubjectThemeManager() {
 
                                             <div className="flex items-center gap-4">
                                                 <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-700">
-                                                    Total: {temaActual.preguntas.length}
+                                                    Total: {filteredQuestions.length}
                                                 </span>
+
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-sm text-gray-500">Dificultad:</p>
+                                                    <select
+                                                        value={difficultyFilter}
+                                                        onChange={(e) => setDifficultyFilter(e.target.value)}
+                                                        className="w-auto text-center appearance-none bg-gray-50 border border-gray-200 text-gray-700 py-1 px-2 rounded-lg text-sm leading-tight focus:outline-none focus:bg-white focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition"
+                                                    >
+                                                        <option value="all">Todas</option>
+                                                        <option value="easy">Fácil</option>
+                                                        <option value="medium">Media</option>
+                                                        <option value="hard">Difícil</option>
+                                                    </select>
+                                                </div>
 
                                                 <div className="flex items-center gap-2">
                                                     <p className="text-sm text-gray-500">Mostrar</p>
@@ -538,13 +612,13 @@ export default function SubjectThemeManager() {
                                             </div>
                                         </div>
 
-                                        {temaActual.preguntas.length === 0 ? (
+                                        {filteredQuestions.length === 0 ? (
                                             <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
                                                 <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
-                                                <p className="text-gray-500 font-medium">No hay preguntas agregadas</p>
-                                                <p className="text-sm text-gray-400 mt-1">Use el formulario de arriba para agregar preguntas</p>
+                                                <p className="text-gray-500 font-medium">No hay preguntas que coincidan con el filtro</p>
+                                                <p className="text-sm text-gray-400 mt-1">Use el formulario de arriba para agregar preguntas o cambie el filtro de dificultad</p>
                                             </div>
                                         ) : (
                                             <>
@@ -563,6 +637,15 @@ export default function SubjectThemeManager() {
                                                                         onChange={(e) => setPreguntaEditada({ ...preguntaEditada, texto: e.target.value })}
                                                                         className="block w-full bg-gray-50 border border-gray-200 text-gray-700 py-2 px-3 rounded-lg text-sm focus:outline-none focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition"
                                                                     />
+                                                                    <select
+                                                                        value={preguntaEditada.dificultad}
+                                                                        onChange={(e) => setPreguntaEditada({ ...preguntaEditada, dificultad: e.target.value })}
+                                                                        className="block w-full bg-gray-50 border border-gray-200 text-gray-700 py-2 px-3 rounded-lg text-sm focus:outline-none focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition"
+                                                                    >
+                                                                        <option value="easy">Fácil</option>
+                                                                        <option value="medium">Media</option>
+                                                                        <option value="hard">Difícil</option>
+                                                                    </select>
                                                                     <textarea
                                                                         value={preguntaEditada.respuestaEsperada}
                                                                         onChange={(e) => setPreguntaEditada({ ...preguntaEditada, respuestaEsperada: e.target.value })}
@@ -600,28 +683,45 @@ export default function SubjectThemeManager() {
                                                                                 </p>
                                                                                 <p className="text-xs text-gray-400 mt-2">
                                                                                     Agregada: {pregunta.fechaCreacion}
+                                                                                    {pregunta.fechaModificacion && pregunta.fechaModificacion !== pregunta.fechaCreacion && (
+                                                                                        <span className="ml-2 text-gray-400">| Modificada: {pregunta.fechaModificacion}</span>
+                                                                                    )}
                                                                                 </p>
                                                                             </div>
                                                                         </div>
-                                                                        <div className="flex gap-1">
-                                                                            <button
-                                                                                onClick={() => handleIniciarEdicion(pregunta)}
-                                                                                className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition"
-                                                                                title="Editar"
-                                                                            >
-                                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                                                </svg>
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={() => handleEliminarPregunta(pregunta.id)}
-                                                                                className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition"
-                                                                                title="Eliminar"
-                                                                            >
-                                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                                                </svg>
-                                                                            </button>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className={`px-2 py-1 rounded text-xs font-medium ${pregunta.dificultad === 'easy' ? 'bg-green-100 text-green-800' :
+                                                                                pregunta.dificultad === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                                                                    pregunta.dificultad === 'hard' ? 'bg-red-100 text-red-800' :
+                                                                                        'bg-gray-100 text-gray-800'
+                                                                                }`}>
+                                                                                {
+                                                                                    pregunta.dificultad === 'easy' ? 'Fácil' :
+                                                                                        pregunta.dificultad === 'medium' ? 'Media' :
+                                                                                            pregunta.dificultad === 'hard' ? 'Difícil' :
+                                                                                                'Sin dificultad'
+                                                                                }
+                                                                            </span>
+                                                                            <div className="flex gap-1">
+                                                                                <button
+                                                                                    onClick={() => handleIniciarEdicion(pregunta)}
+                                                                                    className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition"
+                                                                                    title="Editar"
+                                                                                >
+                                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                                                    </svg>
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => handleEliminarPregunta(pregunta.id)}
+                                                                                    className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition"
+                                                                                    title="Eliminar"
+                                                                                >
+                                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                                    </svg>
+                                                                                </button>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
                                                                 </>
@@ -635,7 +735,7 @@ export default function SubjectThemeManager() {
                                                     <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                                                         <div>
                                                             <p className="text-sm text-gray-700">
-                                                                Mostrando <span className="font-medium">{indexOfFirstItem + 1}</span> a <span className="font-medium">{Math.min(indexOfLastItem, temaActual.preguntas.length)}</span> de <span className="font-medium">{temaActual.preguntas.length}</span> resultados
+                                                                Mostrando <span className="font-medium">{indexOfFirstItem + 1}</span> a <span className="font-medium">{Math.min(indexOfLastItem, filteredQuestions.length)}</span> de <span className="font-medium">{filteredQuestions.length}</span> resultados
                                                             </p>
                                                         </div>
                                                         <div>
