@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import { AppDataSource } from '../config/database.js';
 import { User } from '../models/user.js';
+import { registerValidation } from '../validations/userValidation.js';
 
 const router = express.Router();
 
@@ -51,11 +52,18 @@ router.get('/:id', async (req, res) => {
 // Crear un nuevo usuario
 router.post('/', async (req, res) => {
     try {
-        const { rut, user_name, role, } = req.body;
+        const { rut, user_name, role, password } = req.body;
 
-        // Validar campos requeridos
-        if (!rut || !user_name || !role) {
-            return res.status(400).json({ error: 'RUT, nombre de usuario y rol son obligatorios' });
+        // Validar usando Joi
+        const { error, value } = registerValidation.validate({
+            rut,
+            user_name,
+            role,
+            password
+        });
+
+        if (error) {
+            return res.status(400).json({ error: error.details[0].message });
         }
 
         // Verificar si el usuario ya existe
@@ -64,8 +72,8 @@ router.post('/', async (req, res) => {
             return res.status(409).json({ error: 'El RUT ya está registrado' });
         }
 
-        // Crear nuevo usuario con contraseña basada en últimos 5 dígitos del RUT
-        const plainPassword = generatePasswordFromRUT(rut);
+        // Crear nuevo usuario con contraseña basada en últimos 6 dígitos del RUT
+        const plainPassword = password || generatePasswordFromRUT(rut);
         const hashedPassword = await bcrypt.hash(plainPassword, 10);
         const newUser = userRepository().create({
             rut,
@@ -89,6 +97,18 @@ router.put('/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { rut, user_name, role } = req.body;
+
+        // Validar usando Joi (solo los campos proporcionados)
+        const { error } = registerValidation.validate({
+            rut: rut || undefined,
+            user_name: user_name || undefined,
+            role: role || undefined,
+            password: undefined // No validar contraseña en actualización
+        }, { presence: 'optional' });
+
+        if (error) {
+            return res.status(400).json({ error: error.details[0].message });
+        }
 
         const user = await userRepository().findOne({ where: { user_id: parseInt(id) } });
 
@@ -125,6 +145,46 @@ router.delete('/:id', async (req, res) => {
         res.json({ message: 'Usuario eliminado correctamente' });
     } catch (error) {
         res.status(500).json({ error: 'Error al eliminar usuario', details: error.message });
+    }
+});
+
+// GET /api/users/students/by-subject/:subjectId
+// Obtiene todos los estudiantes inscritos en una asignatura específica
+router.get('/students/by-subject/:subjectId', async (req, res) => {
+    try {
+        const { subjectId } = req.params;
+        
+        const users = await userRepository()
+            .createQueryBuilder('user')
+            .innerJoin(
+                'student_subject',
+                'ss',
+                'ss.user_id = user.user_id'
+            )
+            .where('ss.subject_id = :subjectId', { subjectId })
+            .andWhere('ss.status = :status', { status: 'active' })
+            .andWhere('user.role = :role', { role: 'estudiante' })
+            .select(['user.user_id', 'user.rut', 'user.user_name'])
+            .getMany();
+
+        res.json(users);
+    } catch (error) {
+        console.error('Error fetching students by subject:', error);
+        res.status(500).json({ error: 'Error al obtener estudiantes', details: error.message });
+    }
+});
+
+// GET /api/users/students
+// Obtiene todos los usuarios con rol estudiante
+router.get('/students', async (req, res) => {
+    try {
+        const students = await userRepository().find({
+            where: { role: 'estudiante' },
+            select: ['user_id', 'rut', 'user_name']
+        });
+        res.json(students);
+    } catch (error) {
+        res.status(500).json({ error: 'Error al obtener estudiantes', details: error.message });
     }
 });
 

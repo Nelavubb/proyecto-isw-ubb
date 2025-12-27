@@ -7,7 +7,7 @@ export type EvaluationDetail = {
   guidline_id: number;
   observation?: string;
   grade?: number;
-  evaluation_status: string;
+  status: string;
   created_at?: string;
 };
 
@@ -50,7 +50,7 @@ export const getEvaluationById = async (evaluationDetailId: number): Promise<Eva
  */
 export const updateEvaluation = async (
   evaluationDetailId: number,
-  data: { grade?: number; observation?: string; evaluation_status?: string }
+  data: { grade?: number; observation?: string; status?: string }
 ): Promise<EvaluationDetail> => {
   try {
     const response = await apiClient.put<EvaluationDetail>(
@@ -73,7 +73,7 @@ export const completeEvaluation = async (evaluationDetailId: number): Promise<Ev
   try {
     const response = await apiClient.put<EvaluationDetail>(
       `/evaluation-details/${evaluationDetailId}`,
-      { evaluation_status: 'completed' }
+      { status: 'completed' }
     );
     return response.data;
   } catch (error) {

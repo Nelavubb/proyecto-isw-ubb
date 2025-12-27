@@ -16,7 +16,7 @@ router.get('/pending', async (req, res) => {
     
     const query = evaluationRepository
       .createQueryBuilder('ed')
-      .where("ed.evaluation_status = :status", { status: 'pending' })
+      .where("ed.status = :status", { status: 'pending' })
       .leftJoinAndSelect('ed.guidline', 'guidline')
       .leftJoinAndSelect('guidline.theme', 'theme');
     
@@ -92,12 +92,12 @@ router.get('/:id', async (req, res) => {
 
 /**
  * PUT /api/evaluation-details/:id
- * Actualiza una evaluación (grade, observation, evaluation_status)
+ * Actualiza una evaluación (grade, observation, status)
  */
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { grade, observation, evaluation_status } = req.body;
+    const { grade, observation, status } = req.body;
     const evaluationRepository = AppDataSource.getRepository(Evaluation_detail);
     
     const evaluation = await evaluationRepository.findOne({
@@ -111,7 +111,7 @@ router.put('/:id', async (req, res) => {
     // Actualizar campos proporcionados
     if (grade !== undefined) evaluation.grade = grade;
     if (observation !== undefined) evaluation.observation = observation;
-    if (evaluation_status !== undefined) evaluation.evaluation_status = evaluation_status;
+    if (status !== undefined) evaluation.status = status;
     
     const updated = await evaluationRepository.save(evaluation);
     
@@ -137,7 +137,7 @@ router.get('/', async (req, res) => {
       .leftJoinAndSelect('guidline.theme', 'theme');
     
     if (status) {
-      query = query.where('ed.evaluation_status = :status', { status });
+      query = query.where('ed.status = :status', { status });
     }
     
     if (userId) {
