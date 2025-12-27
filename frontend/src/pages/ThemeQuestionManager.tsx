@@ -4,7 +4,7 @@ import BottomNavigation from '../components/BottomNavigation';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getSubjectsByUser, Subject } from '../services/subjectService';
 import { getThemesBySubject, Theme, createTheme, updateTheme, deleteTheme } from '../services/themeService';
-import { getQuestionsByTheme } from '../services/questionService';
+import { getQuestionsByTheme, createQuestion } from '../services/questionService';
 
 // Interfaces matching backend/services roughly, or keeping local for now if migrating
 interface Pregunta {
@@ -115,7 +115,7 @@ export default function SubjectThemeManager() {
                     setTemasExistentes(themesWithQuestions);
                 } else {
                     console.error("Subject not found or access denied");
-                    navigate('/gestion-temas');
+                    navigate('/gestion-asignaturas');
                 }
             } catch (error) {
                 console.error("Error fetching data:", error);
@@ -164,30 +164,44 @@ export default function SubjectThemeManager() {
         }
     };
 
-    const handleAgregarPregunta = () => {
+    const handleAgregarPregunta = async () => {
         if (!nuevaPregunta.texto.trim() || !nuevaPregunta.respuestaEsperada.trim()) return;
 
-        const pregunta: Pregunta = {
-            id: temaActual.preguntas.length + 1,
-            texto: nuevaPregunta.texto,
-            respuestaEsperada: nuevaPregunta.respuestaEsperada,
-            fechaCreacion: new Date().toISOString().split('T')[0],
-        };
+        try {
+            const questionData = {
+                question_text: nuevaPregunta.texto,
+                answer: nuevaPregunta.respuestaEsperada,
+                theme_id: temaActual.id,
+                user_id: user ? parseInt(user.id) : undefined
+            };
 
-        const temaActualizado = {
-            ...temaActual,
-            preguntas: [...temaActual.preguntas, pregunta],
-        };
+            const savedQuestion = await createQuestion(questionData);
 
-        setTemaActual(temaActualizado);
+            const pregunta: Pregunta = {
+                id: savedQuestion.id_question,
+                texto: savedQuestion.question_text,
+                respuestaEsperada: savedQuestion.answer,
+                fechaCreacion: savedQuestion.created_at ? new Date(savedQuestion.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            };
 
-        if (temaActual.guardado) {
+            const temaActualizado = {
+                ...temaActual,
+                preguntas: [...temaActual.preguntas, pregunta],
+            };
+
+            setTemaActual(temaActualizado);
+
+            // Si el tema está guardado (siempre debería estarlo si estamos agregando preguntas a él), actualizamos la lista global
             setTemasExistentes(temasExistentes.map(t =>
                 t.id === temaActual.id ? temaActualizado : t
             ));
-        }
 
-        setNuevaPregunta({ texto: '', respuestaEsperada: '' });
+            setNuevaPregunta({ texto: '', respuestaEsperada: '' });
+            alert("Pregunta agregada correctamente");
+        } catch (error) {
+            console.error("Error creating question:", error);
+            alert("Error al agregar la pregunta");
+        }
     };
 
     const handleEliminarPregunta = (preguntaId: number) => {
@@ -256,7 +270,7 @@ export default function SubjectThemeManager() {
             }
         } catch (error) {
             console.error("Error deleting theme:", error);
-            alert("Error al eliminar el tema");
+            alert("Error al eliminar el tema.\nSe esta usando en una comision o en una pauta.");
         }
     };
 
@@ -312,7 +326,7 @@ export default function SubjectThemeManager() {
 
                     {/* Back Button */}
                     <button
-                        onClick={() => navigate('/gestion-temas')}
+                        onClick={() => navigate('/gestion-asignaturas')}
                         className="flex items-center text-gray-500 hover:text-[#003366] transition mb-4"
                     >
                         <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -437,7 +451,7 @@ export default function SubjectThemeManager() {
                                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                         </svg>
-                                        Guardar Definición del Tema
+                                        Guardar
                                     </button>
                                 </div>
                             </div>
