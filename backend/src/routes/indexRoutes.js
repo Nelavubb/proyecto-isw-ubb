@@ -15,7 +15,7 @@ router.use('/auth', authRoutes);
 router.use('/theme', themeRoutes);
 router.use('/subjects', subjectRoutes);
 router.use('/questions', questionRoutes);
-router.use('/users', usersRoutes);
+router.use('/Users', usersRoutes);
 router.use('/guidelines', guidelineRoutes);
 router.use('/history', historyRoutes);
 router.use('/evaluation-details', evaluationRoutes);

@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { AppDataSource } from '../config/database.js';
-import { User } from '../models/user.js';
+import { User } from '../models/User.js';
 import { registerValidation, loginValidation } from '../validations/userValidation.js';
 import dotenv from 'dotenv';
 

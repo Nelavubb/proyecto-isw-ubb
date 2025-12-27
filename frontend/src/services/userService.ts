@@ -9,12 +9,12 @@ export interface User {
 }
 
 export const getUsers = async (): Promise<User[]> => {
-    const response = await api.get('/users');
+    const response = await api.get('/Users');
     return response.data;
 };
 
 export const createUser = async (userData: { rut: string; user_name: string; role: string }): Promise<User> => {
-    const response = await api.post('/users', userData);
+    const response = await api.post('/Users', userData);
     return response.data;
 };
 

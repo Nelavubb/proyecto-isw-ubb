@@ -10,7 +10,6 @@ import Dashboard from "./pages/Dashboard";
 import Evaluaciones from "./pages/Evaluaciones";
 import Practice from "./pages/Practice";
 import RealizacionEvaluacion from "./pages/RealizarEvaluacion";
-import Historial from "./pages/Historial";
 import SubjectSelect from "./pages/SubjectSelect";
 import ThemeSelect from "./pages/ThemeSelect";
 import QuestionBank from "./pages/QuestionBank";
