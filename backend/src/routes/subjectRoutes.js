@@ -50,4 +50,17 @@ router.get('/by-user/:userId', async (req, res) => {
     }
 });
 
+// GET /api/subjects
+// Obtiene todas las asignaturas
+router.get('/', async (req, res) => {
+    try {
+        const subjectRepository = AppDataSource.getRepository(Subject);
+        const subjects = await subjectRepository.find();
+        res.json(subjects);
+    } catch (error) {
+        console.error("Error al obtener asignaturas:", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+});
+
 export default router;

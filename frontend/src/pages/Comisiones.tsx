@@ -4,12 +4,13 @@ import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
 import { getGuidelines, Guideline } from '../services/guidelineService';
 import { getAllThemes, Theme } from '../services/themeService';
-import { getSubjectsByUser, Subject } from '../services/subjectService';
+import { getAllSubjects, getSubjectsByUser, Subject } from '../services/subjectService';
 import { 
     getCommissions, 
     createCommission, 
     deleteCommission,
     getAllStudents,
+    getStudentsBySubject,
     Commission as CommissionAPI,
     Estudiante as EstudianteAPI
 } from '../services/commissionService';
@@ -105,8 +106,8 @@ export default function Comisiones() {
     useEffect(() => {
         loadPautas();
         loadTemas();
-        loadEstudiantes();
         loadComisiones();
+        // Los estudiantes se cargan cuando se selecciona un tema
     }, []);
 
     const loadComisiones = async () => {
@@ -182,21 +183,30 @@ export default function Comisiones() {
         try {
             setLoadingTemas(true);
             const themesData = await getAllThemes();
-            // Cargar asignaturas del usuario para obtener los nombres
-            const userId = user?.id ? parseInt(user.id) : undefined;
-            const subjectsData = userId ? await getSubjectsByUser(userId) : [];
-            setAsignaturas(subjectsData);
             
-            // Transformar los temas al formato esperado
-            const temasTransformados: Tema[] = themesData.map((theme: Theme) => {
-                const asignatura = subjectsData.find((s: Subject) => s.subject_id === parseInt(theme.subject_id as unknown as string));
-                return {
-                    id: theme.theme_id,
-                    nombre: theme.theme_name,
-                    asignatura: asignatura?.subject_name || 'Sin asignatura',
-                    subjectId: theme.subject_id as unknown as number,
-                };
-            });
+            // Cargar todas las asignaturas para obtener los nombres
+            const allSubjectsData = await getAllSubjects();
+            
+            // Cargar solo las asignaturas del profesor para filtrar
+            const userId = user?.id ? parseInt(user.id) : undefined;
+            const profesorSubjects = userId ? await getSubjectsByUser(userId) : [];
+            const profesorSubjectIds = profesorSubjects.map((s: Subject) => Number(s.subject_id));
+            
+            setAsignaturas(allSubjectsData);
+            
+            // Filtrar y transformar los temas (solo los de asignaturas del profesor)
+            const temasTransformados: Tema[] = themesData
+                .filter((theme: Theme) => profesorSubjectIds.includes(Number(theme.subject_id)))
+                .map((theme: Theme) => {
+                    const themeSubjectId = Number(theme.subject_id);
+                    const asignatura = allSubjectsData.find((s: Subject) => Number(s.subject_id) === themeSubjectId);
+                    return {
+                        id: theme.theme_id,
+                        nombre: theme.theme_name,
+                        asignatura: asignatura?.subject_name || 'Sin asignatura',
+                        subjectId: themeSubjectId,
+                    };
+                });
             
             setTemas(temasTransformados);
         } catch (error) {
@@ -226,7 +236,7 @@ export default function Comisiones() {
         }
     };
 
-    const handleTemaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const handleTemaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const temaId = parseInt(e.target.value);
         const tema = temas.find(t => t.id === temaId) || null;
         setTemaSeleccionado(tema);
@@ -235,8 +245,34 @@ export default function Comisiones() {
         if (tema) {
             const pauta = pautas.find(p => p.theme_id === tema.id);
             setPautaSeleccionada(pauta || null);
+            
+            // Cargar estudiantes de la asignatura del tema
+            const subjectId = tema.subjectId ? Number(tema.subjectId) : null;
+            if (subjectId) {
+                try {
+                    setLoadingEstudiantes(true);
+                    console.log('Cargando estudiantes para asignatura:', subjectId);
+                    const data = await getStudentsBySubject(subjectId);
+                    console.log('Estudiantes recibidos:', data);
+                    const estudiantesTransformados: Estudiante[] = data.map((e: EstudianteAPI) => ({
+                        id: e.user_id,
+                        nombre: e.user_name,
+                        rut: e.rut || 'Sin RUT',
+                    }));
+                    setEstudiantes(estudiantesTransformados);
+                } catch (error) {
+                    console.error('Error al cargar estudiantes de la asignatura:', error);
+                    setEstudiantes([]);
+                } finally {
+                    setLoadingEstudiantes(false);
+                }
+            } else {
+                console.log('El tema no tiene subjectId:', tema);
+                setEstudiantes([]);
+            }
         } else {
             setPautaSeleccionada(null);
+            setEstudiantes([]);
         }
     };
 
@@ -301,11 +337,13 @@ export default function Comisiones() {
 
         try {
             const userId = parseInt(user.id);
+            const timestamp = Date.now(); // Para hacer el nombre único
             
             // Crear cada comisión en el backend
-            for (const comision of comisiones) {
+            for (let i = 0; i < comisiones.length; i++) {
+                const comision = comisiones[i];
                 const commissionData = {
-                    commission_name: `Comisión ${comision.id} - ${temaSeleccionado.nombre}`,
+                    commission_name: `Comisión ${i + 1} - ${temaSeleccionado.nombre} - ${timestamp}`,
                     user_id: userId,
                     theme_id: temaSeleccionado.id,
                     guideline_id: pautaSeleccionada?.guidline_id,
@@ -315,6 +353,7 @@ export default function Comisiones() {
                     estudiantes: comision.estudiantes.map(e => e.id),
                 };
                 
+                console.log('Enviando comisión:', commissionData);
                 await createCommission(commissionData);
             }
 
@@ -327,10 +366,15 @@ export default function Comisiones() {
         }
     };
 
-    const estudiantesFiltrados = estudiantes.filter(e =>
-        e.nombre.toLowerCase().includes(searchEstudiante.toLowerCase()) ||
-        e.rut.includes(searchEstudiante)
-    );
+    // Obtener IDs de estudiantes ya asignados a otras comisiones de esta evaluación
+    const estudiantesYaAsignados = comisiones.flatMap(c => c.estudiantes.map(e => e.id));
+
+    const estudiantesFiltrados = estudiantes
+        .filter(e => !estudiantesYaAsignados.includes(e.id)) // Excluir ya asignados a otras comisiones
+        .filter(e =>
+            e.nombre.toLowerCase().includes(searchEstudiante.toLowerCase()) ||
+            e.rut.includes(searchEstudiante)
+        );
 
     const formatDate = (dateStr: string) => {
         const date = new Date(dateStr + 'T00:00:00');

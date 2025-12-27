@@ -6,6 +6,11 @@ export interface Subject {
     user_id: number;
 }
 
+export const getAllSubjects = async (): Promise<Subject[]> => {
+    const response = await api.get('/subjects');
+    return response.data;
+};
+
 export const getEnrolledSubjects = async (userId: number): Promise<Subject[]> => {
     const response = await api.get(`/subjects/enrolled/${userId}`);
     return response.data;

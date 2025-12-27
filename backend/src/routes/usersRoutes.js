@@ -130,10 +130,12 @@ router.delete('/:id', async (req, res) => {
 
 // GET /api/users/students/by-subject/:subjectId
 // Obtiene todos los estudiantes inscritos en una asignatura específica
+// Utiliza la tabla student_subject para encontrar la relación estudiante-asignatura
 router.get('/students/by-subject/:subjectId', async (req, res) => {
     try {
         const { subjectId } = req.params;
         
+        // Query usando student_subject como tabla de relación
         const users = await userRepository()
             .createQueryBuilder('user')
             .innerJoin(
@@ -142,8 +144,6 @@ router.get('/students/by-subject/:subjectId', async (req, res) => {
                 'ss.user_id = user.user_id'
             )
             .where('ss.subject_id = :subjectId', { subjectId })
-            .andWhere('ss.status = :status', { status: 'active' })
-            .andWhere('user.role = :role', { role: 'estudiante' })
             .select(['user.user_id', 'user.rut', 'user.user_name'])
             .getMany();
 
