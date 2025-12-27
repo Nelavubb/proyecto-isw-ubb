@@ -13,7 +13,7 @@ export const getUsers = async (): Promise<User[]> => {
     return response.data;
 };
 
-export const createUser = async (userData: { rut: string; user_name: string; role: string }): Promise<User> => {
+export const createUser = async (userData: { rut: string; user_name: string; role: string; password?: string }): Promise<User> => {
     const response = await api.post('/users', userData);
     return response.data;
 };
