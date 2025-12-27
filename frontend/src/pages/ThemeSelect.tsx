@@ -14,6 +14,7 @@ const ThemeSelect: React.FC = () => {
     const [subjectName, setSubjectName] = useState<string>(
         location.state?.subjectName || "Asignatura"
     );
+    const [difficulty, setDifficulty] = useState<string>('all');
 
     useEffect(() => {
         const fetchThemes = async () => {
@@ -33,8 +34,8 @@ const ThemeSelect: React.FC = () => {
     }, [subjectId]);
 
     const handleSelectTheme = (id: number, name: string) => {
-        console.log(`Tema seleccionado: ${id}`);
-        navigate(`/practice/quiz/${id}`, { state: { themeName: name } });
+        console.log(`Tema seleccionado: ${id}, Dificultad: ${difficulty}`);
+        navigate(`/practice/quiz/${id}`, { state: { themeName: name, difficulty } });
     };
 
     // Función auxiliar para dar iconos dinámicos según el tema
@@ -51,13 +52,31 @@ const ThemeSelect: React.FC = () => {
             <Header />
             <main className="flex-1 z-10 max-w-4xl mx-auto w-full p-6 pt-24 pb-24">
                 <div className="mb-8 bg-white rounded-lg shadow-md p-6">
-                    <div className="border-l-4 border-blue-900 pl-4">
-                        <h2 className="text-xl font-semibold text-gray-700">
-                            Temas de {subjectName}
-                        </h2>
-                        <p className="text-gray-500 text-sm mt-1">
-                            Selecciona un tema para practicar
-                        </p>
+                    <div className="border-l-4 border-blue-900 pl-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h2 className="text-xl font-semibold text-gray-700">
+                                Temas de {subjectName}
+                            </h2>
+                            <p className="text-gray-500 text-sm mt-1">
+                                Selecciona un tema para practicar
+                            </p>
+                        </div>
+
+                        {/* Selector de Dificultad Global */}
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="difficulty" className="text-sm font-medium text-gray-700">Dificultad:</label>
+                            <select
+                                id="difficulty"
+                                value={difficulty}
+                                onChange={(e) => setDifficulty(e.target.value)}
+                                className="border-gray-300 border rounded-md text-sm p-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            >
+                                <option value="all">Todas</option>
+                                <option value="easy">Fácil</option>
+                                <option value="medium">Media</option>
+                                <option value="hard">Difícil</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 {loading ? (

@@ -7,13 +7,20 @@ const router = express.Router();
 // GET /api/questions/by-theme/:themeId
 router.get('/by-theme/:themeId', async (req, res) => {
     const { themeId } = req.params;
+    const { difficulty } = req.query;
 
     try {
         const questionRepository = AppDataSource.getRepository(Questions);
 
-        const questions = await questionRepository
+        let query = questionRepository
             .createQueryBuilder("question")
-            .where("question.theme_id = :id", { id: themeId })
+            .where("question.theme_id = :id", { id: themeId });
+
+        if (difficulty) {
+            query = query.andWhere("question.difficulty = :difficulty", { difficulty });
+        }
+
+        const questions = await query
             .leftJoinAndSelect("question.user", "user")
             .orderBy("RANDOM()")
             .limit(10)

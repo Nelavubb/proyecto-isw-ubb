@@ -21,8 +21,12 @@ export const getAllQuestions = async (limit: number): Promise<Question[]> => {
 };
 
 // New function to get questions by theme
-export const getQuestionsByTheme = async (themeId: number): Promise<Question[]> => {
-    const response = await api.get(`/questions/by-theme/${themeId}`);
+export const getQuestionsByTheme = async (themeId: number, difficulty?: string): Promise<Question[]> => {
+    let url = `/questions/by-theme/${themeId}`;
+    if (difficulty && difficulty !== 'all') {
+        url += `?difficulty=${difficulty}`;
+    }
+    const response = await api.get(url);
     return response.data;
 };
 
