@@ -44,7 +44,7 @@ export const Student_Subject = new EntitySchema({
             joinColumn: {
                 name: 'subject_id',
             },
-            onDelete: 'RESTRICT',
+            onDelete: 'CASCADE',
         },
     },
 });

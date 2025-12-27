@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
 import { useNavigate } from 'react-router-dom';
-import { getAllSubjects, createSubject, updateSubject, Subject } from '../services/subjectService';
+import { getAllSubjects, createSubject, updateSubject, deleteSubject, Subject } from '../services/subjectService';
 import { getUsers, User } from '../services/userService';
-import { BookOpen, Scale, Gavel, Landmark, Plus, Edit2 } from "lucide-react";
+import { BookOpen, Scale, Gavel, Landmark, Plus, Edit2, Trash2 } from "lucide-react";
 import { useAuth } from '../hooks/useAuth';
 
 export default function SubjectSelectionAdmin() {
@@ -19,6 +19,7 @@ export default function SubjectSelectionAdmin() {
     const [selectedTeacherId, setSelectedTeacherId] = useState<number | ''>('');
     const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
     const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [errors, setErrors] = useState<string[]>([]);
 
     useEffect(() => {
         fetchData();
@@ -55,7 +56,25 @@ export default function SubjectSelectionAdmin() {
         setEditingSubject(subject);
         setNewSubjectName(subject.subject_name);
         setSelectedTeacherId(subject.user_id);
+        setErrors([]);
         setShowModal(true);
+    };
+
+    const handleDeleteClick = async (e: React.MouseEvent, subjectId: number) => {
+        e.stopPropagation();
+        if (!window.confirm('¿Está seguro de que desea eliminar esta asignatura?')) return;
+
+        try {
+            await deleteSubject(subjectId);
+            setToast({ type: 'success', text: 'Asignatura eliminada exitosamente' });
+            fetchData();
+        } catch (error: any) {
+            console.error("Error deleting subject:", error);
+            const msg = error.response?.data?.message || 'Error al eliminar la asignatura';
+            setToast({ type: 'error', text: msg });
+        } finally {
+            setTimeout(() => setToast(null), 3000);
+        }
     };
 
     const handleCloseModal = () => {
@@ -63,34 +82,37 @@ export default function SubjectSelectionAdmin() {
         setNewSubjectName('');
         setSelectedTeacherId('');
         setEditingSubject(null);
+        setErrors([]);
         setToast(null);
     };
+
     const handleSaveSubject = async () => {
         const trimmedName = newSubjectName.trim();
+        const newErrors: string[] = [];
+
         if (!trimmedName) {
-            setToast({ type: 'error', text: 'El nombre de la asignatura es obligatorio' });
-            return;
-        }
-
-        if (trimmedName.length < 2) {
-            setToast({ type: 'error', text: 'El nombre debe tener al menos 2 caracteres' });
-            return;
-        }
-
-        const nameRegex = /^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s-]+$/;
-        if (!nameRegex.test(trimmedName)) {
-            setToast({ type: 'error', text: 'El nombre contiene caracteres no válidos (solo letras, números, espacios y guiones)' });
-            return;
+            newErrors.push('El nombre de la asignatura es obligatorio');
+        } else {
+            if (trimmedName.length < 2) {
+                newErrors.push('El nombre debe tener al menos 2 caracteres');
+            }
+            const nameRegex = /^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s-]+$/;
+            if (!nameRegex.test(trimmedName)) {
+                newErrors.push('El nombre contiene caracteres no válidos (solo letras, números, espacios y guiones)');
+            }
         }
 
         if (!selectedTeacherId) {
-            setToast({ type: 'error', text: 'Debe seleccionar un profesor' });
-            return;
+            newErrors.push('Debe seleccionar un profesor');
+        } else {
+            const isValidTeacher = teachers.some(t => t.user_id === Number(selectedTeacherId));
+            if (!isValidTeacher) {
+                newErrors.push('El profesor seleccionado no es válido');
+            }
         }
 
-        const isValidTeacher = teachers.some(t => t.user_id === Number(selectedTeacherId));
-        if (!isValidTeacher) {
-            setToast({ type: 'error', text: 'El profesor seleccionado no es válido' });
+        if (newErrors.length > 0) {
+            setErrors(newErrors);
             return;
         }
 
@@ -143,7 +165,10 @@ export default function SubjectSelectionAdmin() {
                             </p>
                         </div>
                         <button
-                            onClick={() => setShowModal(true)}
+                            onClick={() => {
+                                setErrors([]);
+                                setShowModal(true);
+                            }}
                             className="bg-[#003366] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#004488] transition-colors shadow-sm"
                         >
                             <Plus className="w-5 h-5" />
@@ -179,13 +204,22 @@ export default function SubjectSelectionAdmin() {
                                         )}
                                     </div>
 
-                                    <button
-                                        onClick={(e) => handleEditClick(e, subject)}
-                                        className="p-2 text-blue-600 hover:bg-blue-50 border border-gray-200 rounded-lg transition-colors"
-                                        title="Editar asignatura"
-                                    >
-                                        <Edit2 className="w-5 h-5" />
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={(e) => handleEditClick(e, subject)}
+                                            className="p-2 text-blue-600 hover:bg-blue-50 border border-gray-200 rounded-lg transition-colors"
+                                            title="Editar asignatura"
+                                        >
+                                            <Edit2 className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={(e) => handleDeleteClick(e, subject.subject_id)}
+                                            className="p-2 text-red-600 hover:bg-red-50 border border-gray-200 rounded-lg transition-colors"
+                                            title="Eliminar asignatura"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
 
@@ -219,6 +253,30 @@ export default function SubjectSelectionAdmin() {
                             </button>
                         </div>
 
+                        {errors.length > 0 && (
+                            <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
+                                <div className="flex">
+                                    <div className="flex-shrink-0">
+                                        <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div className="ml-3">
+                                        <h3 className="text-sm font-medium text-red-800">
+                                            Se encontraron errores:
+                                        </h3>
+                                        <div className="mt-2 text-sm text-red-700">
+                                            <ul className="list-disc pl-5 space-y-1">
+                                                {errors.map((error, index) => (
+                                                    <li key={index}>{error}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -229,7 +287,6 @@ export default function SubjectSelectionAdmin() {
                                     value={newSubjectName}
                                     onChange={(e) => setNewSubjectName(e.target.value)}
                                     maxLength={300}
-                                    minLength={2}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003366] focus:border-transparent outline-none transition-all"
                                     placeholder="Ej. Derecho Civil I"
                                 />

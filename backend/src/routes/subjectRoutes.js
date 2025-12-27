@@ -129,4 +129,29 @@ router.put('/:id', async (req, res) => {
     }
 });
 
+// DELETE /api/subjects/:id
+// Elimina una asignatura existente
+router.delete('/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const subjectRepository = AppDataSource.getRepository(Subject);
+        const subject = await subjectRepository.findOne({ where: { subject_id: parseInt(id) } });
+
+        if (!subject) {
+            return res.status(404).json({ message: "Asignatura no encontrada" });
+        }
+
+        await subjectRepository.remove(subject);
+        res.json({ message: "Asignatura eliminada correctamente" });
+    } catch (error) {
+        console.error("Error al eliminar asignatura:", error);
+        // Check for foreign key violation (Postgres error code 23503)
+        if (error.code === '23503') {
+            return res.status(400).json({ message: "No se puede eliminar la asignatura. Asegúrese de que los temas no estén asociados a comisiones o pautas." });
+        }
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+});
+
 export default router;
