@@ -12,6 +12,7 @@ export interface Question {
     };
     created_at?: string;
     updated_at?: string;
+    difficulty?: string;
 }
 
 export const getAllQuestions = async (limit: number): Promise<Question[]> => {
@@ -35,7 +36,10 @@ export const getQuestionById = async (id: number): Promise<Question> => {
     return response.data;
 };
 
-export const updateQuestion = async (id: number, questionData: { question_text: string; answer: string; theme_id: number; }): Promise<Question> => {
+export const updateQuestion = async (id: number, questionData: { question_text: string; answer: string; theme_id: number; difficulty?: string; }): Promise<Question> => {
     const response = await api.put(`/questions/update/${id}`, questionData);
     return response.data;
+};
+export const deleteQuestion = async (id: number): Promise<void> => {
+    await api.delete(`/questions/delete/${id}`);
 };
