@@ -38,7 +38,7 @@ export default function GestionTemas() {
     }, [user, authLoading]);
 
     const handleSelectSubject = (subjectId: number) => {
-        navigate(`/gestion-temas/${subjectId}`);
+        navigate(`/gestion-asignaturas/${subjectId}`);
     };
 
     // Helper to get random/consistent icon based on name (reused logic from SimulationSelect roughly)
@@ -61,7 +61,7 @@ export default function GestionTemas() {
 
                     {/* Header Section */}
                     <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[#003366]">
-                        <h1 className="text-2xl font-bold text-[#003366] mb-1">Gestión de Temas</h1>
+                        <h1 className="text-2xl font-bold text-[#003366] mb-1">Gestión de Asignaturas</h1>
                         <p className="text-sm text-gray-500">
                             Seleccione una asignatura para gestionar sus temas y preguntas.
                         </p>
