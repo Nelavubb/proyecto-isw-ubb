@@ -52,11 +52,14 @@ export default function RealizacionEvaluacion() {
   const [criteria, setCriteria] = useState<Criterion[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [feedback, setFeedback] = useState('');
+  const [feedbackCharCount, setFeedbackCharCount] = useState(0);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [toast, setToast] = useState<{ type: 'info' | 'success' | 'error'; text: string } | null>(null);
   const [questionBank, setQuestionBank] = useState<Question[]>([]);
+
+  const FEEDBACK_MAX_CHARS = 500;
 
   // Cargar datos al montar el componente
   useEffect(() => {
@@ -182,6 +185,16 @@ export default function RealizacionEvaluacion() {
       )
     );
     setSaved(false);
+  };
+
+  const handleFeedbackChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    // Limitar a 500 caracteres
+    if (value.length <= FEEDBACK_MAX_CHARS) {
+      setFeedback(value);
+      setFeedbackCharCount(value.length);
+      setSaved(false);
+    }
   };
 
   const guardarProgreso = async () => {
@@ -338,16 +351,18 @@ export default function RealizacionEvaluacion() {
                 <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100 flex-1 flex flex-col">
                   <h3 className="text-lg font-bold text-[#003366] mb-2">Notas de sesión</h3>
                   <p className="text-sm text-gray-500 mb-4">Puedes tomar notas rápidas sobre el desempeño del alumno durante la exposición.</p>
-                  <textarea
-                    className="w-full border border-gray-200 rounded-lg p-3 text-sm resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-h-[300px] bg-gray-50 placeholder-gray-400 flex-1"
-                    placeholder="Escribe tus observaciones relevantes aquí..."
-                    value={feedback}
-                    onChange={(e) => {
-                      setFeedback(e.target.value);
-                      setSaved(false);
-                    }}
-                    disabled={completed}
-                  />
+                  <div className="relative flex-1 flex flex-col">
+                    <textarea
+                      className="w-full border border-gray-200 rounded-lg p-3 text-sm resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-h-[300px] bg-gray-50 placeholder-gray-400 flex-1"
+                      placeholder="Escribe tus observaciones relevantes aquí..."
+                      value={feedback}
+                      onChange={handleFeedbackChange}
+                      disabled={completed}
+                    />
+                    <div className="absolute bottom-3 right-3 text-xs text-gray-500 font-medium bg-white px-2 py-1 rounded">
+                      {feedbackCharCount}/{FEEDBACK_MAX_CHARS}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -459,16 +474,18 @@ export default function RealizacionEvaluacion() {
 
                     <div>
                       <label className="text-xs font-bold text-gray-500 mb-1 block">Observaciones para el estudiante</label>
-                      <textarea
-                        placeholder="Escribe los comentarios y recomendaciones..."
-                        className="w-full border border-gray-200 rounded-lg p-3 text-sm resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-h-[120px]"
-                        value={feedback}
-                        onChange={(e) => {
-                          setFeedback(e.target.value);
-                          setSaved(false);
-                        }}
-                        disabled={completed}
-                      />
+                      <div className="relative">
+                        <textarea
+                          placeholder="Escribe los comentarios y recomendaciones..."
+                          className="w-full border border-gray-200 rounded-lg p-3 text-sm resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-h-[120px]"
+                          value={feedback}
+                          onChange={handleFeedbackChange}
+                          disabled={completed}
+                        />
+                        <div className="absolute bottom-3 right-3 text-xs text-gray-500 font-medium bg-white px-2 py-1 rounded border border-gray-200">
+                          {feedbackCharCount}/{FEEDBACK_MAX_CHARS}
+                        </div>
+                      </div>
                     </div>
 
                     <button
