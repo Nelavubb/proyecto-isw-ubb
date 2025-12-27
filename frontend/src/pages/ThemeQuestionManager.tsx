@@ -70,6 +70,14 @@ export default function SubjectThemeManager() {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
     const [difficultyFilter, setDifficultyFilter] = useState('all');
+    const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+    useEffect(() => {
+        if (toast) {
+            const timer = setTimeout(() => setToast(null), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [toast]);
 
     useEffect(() => {
         const fetchSubjectDetails = async () => {
@@ -159,7 +167,7 @@ export default function SubjectThemeManager() {
                 const themeUpdated = { ...temaActual, nombre: nombre };
                 setTemasExistentes(temasExistentes.map(t => t.id === temaActual.id ? themeUpdated : t));
                 setTemaActual(themeUpdated);
-                alert("Tema actualizado correctamente");
+                setToast({ type: 'success', text: 'Tema actualizado correctamente' });
             } else {
                 const newTheme = await createTheme({
                     theme_name: nombre,
@@ -176,7 +184,7 @@ export default function SubjectThemeManager() {
 
                 setTemasExistentes([...temasExistentes, nuevoTemaLocal]);
                 setTemaActual(nuevoTemaLocal);
-                alert("Tema creado correctamente");
+                setToast({ type: 'success', text: 'Tema creado correctamente' });
             }
         } catch (error: any) {
             console.error("Error saving theme:", error);
@@ -184,7 +192,7 @@ export default function SubjectThemeManager() {
                 setErrors(error.response.data.errors);
             } else {
                 const msg = error.response?.data?.message || "Error al guardar el tema";
-                alert(msg);
+                setToast({ type: 'error', text: msg });
             }
         }
     };
@@ -242,13 +250,13 @@ export default function SubjectThemeManager() {
             ));
 
             setNuevaPregunta({ texto: '', respuestaEsperada: '', dificultad: 'easy' });
-            alert("Pregunta agregada correctamente");
+            setToast({ type: 'success', text: 'Pregunta agregada correctamente' });
         } catch (error: any) {
             console.error("Error creating question:", error);
             if (error.response && error.response.status === 400 && error.response.data.errors) {
                 setErrors(error.response.data.errors);
             } else {
-                alert("Error al agregar la pregunta");
+                setToast({ type: 'error', text: 'Error al agregar la pregunta' });
             }
         }
     };
@@ -271,10 +279,10 @@ export default function SubjectThemeManager() {
                     t.id === temaActual.id ? temaActualizado : t
                 ));
             }
-            alert("Pregunta eliminada correctamente");
+            setToast({ type: 'success', text: 'Pregunta eliminada correctamente' });
         } catch (error) {
             console.error("Error deleting question:", error);
-            alert("Error al eliminar la pregunta");
+            setToast({ type: 'error', text: 'Error al eliminar la pregunta' });
         }
     };
 
@@ -345,13 +353,13 @@ export default function SubjectThemeManager() {
 
             setEditandoPregunta(null);
             setPreguntaEditada({ texto: '', respuestaEsperada: '', dificultad: 'easy' });
-            alert("Pregunta actualizada correctamente");
+            setToast({ type: 'success', text: 'Pregunta actualizada correctamente' });
         } catch (error: any) {
             console.error("Error updating question:", error);
             if (error.response && error.response.status === 400 && error.response.data.errors) {
                 setErrors(error.response.data.errors);
             } else {
-                alert("Error al actualizar la pregunta");
+                setToast({ type: 'error', text: 'Error al actualizar la pregunta' });
             }
         }
     };
@@ -377,9 +385,10 @@ export default function SubjectThemeManager() {
             if (temaActual.id === temaId) {
                 handleNuevoTema();
             }
+            setToast({ type: 'success', text: 'Tema eliminado correctamente' });
         } catch (error) {
             console.error("Error deleting theme:", error);
-            alert("Error al eliminar el tema.\nSe esta usando en una comision o en una pauta.");
+            setToast({ type: 'error', text: 'Error al eliminar. Puede estar en uso.' });
         }
     };
 
@@ -898,7 +907,26 @@ export default function SubjectThemeManager() {
                 </div>
             </main>
 
+            {toast && (
+                <div className={`fixed right-6 bottom-24 max-w-xs p-4 rounded-lg shadow-lg flex items-center gap-3 z-[60] animate-in slide-in-from-right duration-300 ${toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                    }`}>
+                    <div className="flex-shrink-0">
+                        {toast.type === 'success' ? (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                        ) : (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        )}
+                    </div>
+                    <p className="text-sm font-medium">{toast.text}</p>
+                </div>
+            )}
+
             <BottomNavigation />
         </div>
     );
 }
+

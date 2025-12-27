@@ -30,3 +30,7 @@ export const updateSubject = async (id: number, data: { subject_name: string; us
     const response = await api.put(`/subjects/${id}`, data);
     return response.data;
 };
+
+export const deleteSubject = async (id: number): Promise<void> => {
+    await api.delete(`/subjects/${id}`);
+};
