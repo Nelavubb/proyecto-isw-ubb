@@ -192,9 +192,9 @@ function App() {
             }
           />
 
-          {/* Gestión de Temas */}
+          {/* Gestión de Asignaturas */}
           <Route
-            path="/gestion-temas"
+            path="/gestion-asignaturas"
             element={
               <ProtectedRoute>
                 <SubjectSelection />
@@ -202,7 +202,7 @@ function App() {
             }
           />
           <Route
-            path="/gestion-temas/:subjectId"
+            path="/gestion-asignaturas/:subjectId"
             element={
               <ProtectedRoute>
                 <ThemeQuestionManager />

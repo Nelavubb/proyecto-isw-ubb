@@ -41,7 +41,7 @@ export const Questions = new EntitySchema({
             joinColumn: {
                 name: 'theme_id',
             },
-            onDelete: 'RESTRICT',
+            onDelete: 'CASCADE',
         },
         user: {
             target: 'user',
