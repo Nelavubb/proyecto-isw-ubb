@@ -47,7 +47,7 @@ router.get('/all/:limit', async (req, res) => {
 
 // POST /api/questions/create
 router.post('/create', async (req, res) => {
-    const { question_text, answer, theme_id, user_id } = req.body;
+    const { question_text, answer, theme_id, user_id, difficulty } = req.body;
 
     try {
         const questionRepository = AppDataSource.getRepository(Questions);
@@ -56,6 +56,7 @@ router.post('/create', async (req, res) => {
             answer,
             theme_id,
             user_id: user_id || 3, // Default to 3 (Profesor) if not provided
+            difficulty: difficulty || 'easy',
             created_at: new Date(),
             updated_at: new Date()
         });
@@ -110,7 +111,7 @@ router.get('/:id', async (req, res) => {
 // PUT /api/questions/update/:id
 router.put('/update/:id', async (req, res) => {
     const { id } = req.params;
-    const { question_text, answer, theme_id } = req.body;
+    const { question_text, answer, theme_id, difficulty } = req.body;
 
     try {
         const questionRepository = AppDataSource.getRepository(Questions);
@@ -125,6 +126,7 @@ router.put('/update/:id', async (req, res) => {
         question.question_text = question_text;
         question.answer = answer;
         question.theme_id = theme_id;
+        if (difficulty) question.difficulty = difficulty;
         question.updated_at = new Date(); // Manually update timestamp
 
         const updatedQuestion = await questionRepository.save(question);
@@ -132,6 +134,24 @@ router.put('/update/:id', async (req, res) => {
     } catch (error) {
         console.error("Error al actualizar la pregunta:", error);
         res.status(500).json({ message: "Error interno al actualizar" });
+    }
+});
+
+// DELETE /api/questions/delete/:id
+router.delete('/delete/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const questionRepository = AppDataSource.getRepository(Questions);
+        const result = await questionRepository.delete(id);
+
+        if (result.affected === 0) {
+            return res.status(404).json({ message: "Pregunta no encontrada" });
+        }
+
+        res.json({ message: "Pregunta eliminada correctamente" });
+    } catch (error) {
+        console.error("Error al eliminar la pregunta:", error);
+        res.status(500).json({ message: "Error interno al eliminar" });
     }
 });
 
