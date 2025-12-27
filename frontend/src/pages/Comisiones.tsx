@@ -230,7 +230,7 @@ export default function Comisiones() {
         const temaId = parseInt(e.target.value);
         const tema = temas.find(t => t.id === temaId) || null;
         setTemaSeleccionado(tema);
-        
+
         // Buscar si existe pauta para este tema
         if (tema) {
             const pauta = pautas.find(p => p.theme_id === tema.id);
@@ -442,7 +442,7 @@ export default function Comisiones() {
                                                     {getEstadoBadge(evaluacion.estado)}
                                                 </div>
                                                 <p className="text-sm text-gray-600 mb-3">{evaluacion.tema.asignatura}</p>
-                                                
+
                                                 <div className="flex flex-wrap gap-4 text-sm text-gray-500">
                                                     <div className="flex items-center gap-1">
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
