@@ -462,10 +462,19 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
                 <input
                   type="text"
                   value={subjectFormData.subject_name}
-                  onChange={(e) => setSubjectFormData({ ...subjectFormData, subject_name: e.target.value })}
+                  onChange={(e) => {
+                    setSubjectFormData({ ...subjectFormData, subject_name: e.target.value });
+                    if (errors.length > 0) setErrors([]);
+                  }}
+                  maxLength={300}
                   placeholder="Ej. Derecho Civil I"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
                 />
+                <div className="flex justify-end mt-1">
+                  <span className={`text-xs ${subjectFormData.subject_name.length >= 300 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+                    {subjectFormData.subject_name.length}/300
+                  </span>
+                </div>
               </div>
 
               <div>

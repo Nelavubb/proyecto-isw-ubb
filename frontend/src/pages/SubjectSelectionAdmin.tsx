@@ -285,11 +285,19 @@ export default function SubjectSelectionAdmin() {
                                 <input
                                     type="text"
                                     value={newSubjectName}
-                                    onChange={(e) => setNewSubjectName(e.target.value)}
+                                    onChange={(e) => {
+                                        setNewSubjectName(e.target.value);
+                                        if (errors.length > 0) setErrors([]);
+                                    }}
                                     maxLength={300}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003366] focus:border-transparent outline-none transition-all"
                                     placeholder="Ej. Derecho Civil I"
                                 />
+                                <div className="flex justify-end mt-1">
+                                    <span className={`text-xs ${newSubjectName.length >= 300 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+                                        {newSubjectName.length}/300
+                                    </span>
+                                </div>
                             </div>
 
                             <div>
