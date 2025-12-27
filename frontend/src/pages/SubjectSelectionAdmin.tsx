@@ -4,7 +4,7 @@ import BottomNavigation from '../components/BottomNavigation';
 import { useNavigate } from 'react-router-dom';
 import { getAllSubjects, createSubject, updateSubject, deleteSubject, Subject } from '../services/subjectService';
 import { getUsers, User } from '../services/userService';
-import { BookOpen, Scale, Gavel, Landmark, Plus, Edit2, Trash2 } from "lucide-react";
+import { Plus, Edit2, Trash2, GraduationCap } from "lucide-react";
 import { useAuth } from '../hooks/useAuth';
 
 export default function SubjectSelectionAdmin() {
@@ -143,11 +143,8 @@ export default function SubjectSelectionAdmin() {
         }
     };
 
-    const getIcon = (name: string) => {
-        if (name.includes("Penal")) return <Gavel className="w-6 h-6 text-[#003366]" />;
-        if (name.includes("Constitucional")) return <Landmark className="w-6 h-6 text-[#003366]" />;
-        if (name.includes("Civil")) return <Scale className="w-6 h-6 text-[#003366]" />;
-        return <BookOpen className="w-6 h-6 text-[#003366]" />;
+    const getIcon = () => {
+        return <GraduationCap className="w-6 h-6 text-[#003366]" />;
     };
 
     return (
@@ -190,7 +187,7 @@ export default function SubjectSelectionAdmin() {
                                     className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4"
                                 >
                                     <div className="p-3 bg-blue-50 rounded-lg">
-                                        {getIcon(subject.subject_name)}
+                                        {getIcon()}
                                     </div>
 
                                     <div className="flex-1">

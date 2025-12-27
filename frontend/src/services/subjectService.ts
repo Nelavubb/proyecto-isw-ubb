@@ -21,11 +21,6 @@ export const getSubjectsByUser = async (userId: number): Promise<Subject[]> => {
     return response.data;
 };
 
-export const getAllSubjects = async (): Promise<Subject[]> => {
-    const response = await api.get('/subjects');
-    return response.data;
-};
-
 export const createSubject = async (data: { subject_name: string; user_id: number }): Promise<Subject> => {
     const response = await api.post('/subjects', data);
     return response.data;
