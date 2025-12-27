@@ -3,8 +3,7 @@ import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
 import { useNavigate } from 'react-router-dom';
 import { getSubjectsByUser, Subject } from '../services/subjectService';
-import { BookOpen, ChevronRight, Scale, Gavel, Landmark } from "lucide-react";
-
+import { ChevronRight, GraduationCap } from "lucide-react";
 import { useAuth } from '../hooks/useAuth';
 
 export default function GestionTemas() {
@@ -40,14 +39,8 @@ export default function GestionTemas() {
         navigate(`/gestion-asignaturas/${subjectId}`);
     };
 
-    const getIcon = (name: string) => {
-        if (name.includes("Penal"))
-            return <Gavel className="w-6 h-6 text-[#003366]" />;
-        if (name.includes("Constitucional"))
-            return <Landmark className="w-6 h-6 text-[#003366]" />;
-        if (name.includes("Civil"))
-            return <Scale className="w-6 h-6 text-[#003366]" />;
-        return <BookOpen className="w-6 h-6 text-[#003366]" />;
+    const getIcon = () => {
+        return <GraduationCap className="w-6 h-6 text-[#003366]" />;
     };
 
     return (
@@ -80,7 +73,7 @@ export default function GestionTemas() {
                                     className="group bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-200 transition-all duration-200 text-left flex items-center gap-4"
                                 >
                                     <div className="p-3 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
-                                        {getIcon(subject.subject_name)}
+                                        {getIcon()}
                                     </div>
 
                                     <div className="flex-1">
