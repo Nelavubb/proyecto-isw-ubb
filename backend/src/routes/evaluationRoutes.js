@@ -1,6 +1,7 @@
 import express from 'express';
 import { AppDataSource } from '../config/database.js';
 import { Evaluation_detail } from '../models/evaluationdetails.js';
+import { createEvaluationValidation, updateEvaluationValidation } from '../validations/evaluationValidation.js';
 
 const router = express.Router();
 
@@ -96,8 +97,20 @@ router.get('/:id', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   try {
+    // Validar datos de entrada
+    const { error, value } = await updateEvaluationValidation.validate(req.body, { abortEarly: false });
+    
+    if (error) {
+      return res.status(400).json({
+        error: 'Validación fallida',
+        details: error.details.map(detail => ({
+          field: detail.path.join('.'),
+          message: detail.message
+        }))
+      });
+    }
+
     const { id } = req.params;
-    const { grade, observation, status } = req.body;
     const evaluationRepository = AppDataSource.getRepository(Evaluation_detail);
     
     const evaluation = await evaluationRepository.findOne({
@@ -109,9 +122,13 @@ router.put('/:id', async (req, res) => {
     }
     
     // Actualizar campos proporcionados
-    if (grade !== undefined) evaluation.grade = grade;
-    if (observation !== undefined) evaluation.observation = observation;
-    if (status !== undefined) evaluation.status = status;
+    if (value.grade !== undefined) evaluation.grade = value.grade;
+    if (value.observation !== undefined) evaluation.observation = value.observation;
+    if (value.status !== undefined) evaluation.status = value.status;
+    if (value.question_asked !== undefined) evaluation.question_asked = value.question_asked;
+    if (value.user_id !== undefined) evaluation.user_id = value.user_id;
+    if (value.commission_id !== undefined) evaluation.commission_id = value.commission_id;
+    if (value.guidline_id !== undefined) evaluation.guidline_id = value.guidline_id;
     
     const updated = await evaluationRepository.save(evaluation);
     

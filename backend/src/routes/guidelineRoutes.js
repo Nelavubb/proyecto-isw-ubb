@@ -2,6 +2,8 @@ import express from 'express';
 import { AppDataSource } from '../config/database.js';
 import { Guidline } from '../models/guidline.js';
 import { Criterion } from '../models/criterion.js';
+import { createGuidelineValidation, updateGuidelineValidation } from '../validations/guidelineValidation.js';
+import { createCriterionValidation, updateCriterionValidation } from '../validations/criterionValidation.js';
 
 const router = express.Router();
 
@@ -51,28 +53,45 @@ router.post('/', async (req, res) => {
     try {
         const { name, theme_id, description } = req.body;
         
-        // Validar campos requeridos
-        if (!name || !theme_id) {
-            return res.status(400).json({ error: 'Nombre y tema son obligatorios' });
+        // Validar usando Joi
+        const { error, value } = createGuidelineValidation.validate({
+            name,
+            theme_id
+        });
+
+        if (error) {
+            return res.status(400).json({ error: error.details[0].message });
         }
 
         // Crear la pauta
         const guideline = guidelineRepository().create({
-            name,
-            theme_id
+            name: value.name,
+            theme_id: value.theme_id
         });
         
         const savedGuideline = await guidelineRepository().save(guideline);
 
         // Crear criterios asociados
         if (description && Array.isArray(description) && description.length > 0) {
-            const criteriaToSave = description.map((criterion) => 
-                criterionRepository().create({
+            // Validar cada criterio
+            const criteriaToSave = [];
+            for (const criterion of description) {
+                const { error: criterionError, value: criterionValue } = createCriterionValidation.validate({
                     description: criterion.description,
                     scor_max: criterion.scor_max,
                     guidline_id: savedGuideline.guidline_id
-                })
-            );
+                });
+
+                if (criterionError) {
+                    return res.status(400).json({ error: criterionError.details[0].message });
+                }
+
+                criteriaToSave.push(criterionRepository().create({
+                    description: criterionValue.description,
+                    scor_max: criterionValue.scor_max,
+                    guidline_id: criterionValue.guidline_id
+                }));
+            }
             
             await criterionRepository().save(criteriaToSave);
             savedGuideline.description = criteriaToSave;
@@ -90,6 +109,16 @@ router.put('/:id', async (req, res) => {
         const { id } = req.params;
         const { name, theme_id, description } = req.body;
         
+        // Validar usando Joi
+        const { error, value } = updateGuidelineValidation.validate({
+            name,
+            theme_id
+        });
+
+        if (error) {
+            return res.status(400).json({ error: error.details[0].message });
+        }
+        
         const guideline = await guidelineRepository().findOne({
             where: { guidline_id: parseInt(id) },
             relations: ['theme']
@@ -100,8 +129,8 @@ router.put('/:id', async (req, res) => {
         }
 
         // Actualizar pauta
-        if (name) guideline.name = name;
-        if (theme_id) guideline.theme_id = theme_id;
+        if (value.name) guideline.name = value.name;
+        if (value.theme_id) guideline.theme_id = value.theme_id;
         
         await guidelineRepository().save(guideline);
 
@@ -116,14 +145,25 @@ router.put('/:id', async (req, res) => {
                 await criterionRepository().remove(oldCriteria);
             }
 
-            // Crear nuevos criterios
-            const criteriaToSave = description.map((criterion) =>
-                criterionRepository().create({
+            // Validar y crear nuevos criterios
+            const criteriaToSave = [];
+            for (const criterion of description) {
+                const { error: criterionError, value: criterionValue } = updateCriterionValidation.validate({
                     description: criterion.description,
                     scor_max: criterion.scor_max,
+                    guidline_id: criterion.guidline_id
+                });
+
+                if (criterionError) {
+                    return res.status(400).json({ error: criterionError.details[0].message });
+                }
+
+                criteriaToSave.push(criterionRepository().create({
+                    description: criterionValue.description,
+                    scor_max: criterionValue.scor_max,
                     guidline_id: guideline.guidline_id
-                })
-            );
+                }));
+            }
             
             await criterionRepository().save(criteriaToSave);
         }
