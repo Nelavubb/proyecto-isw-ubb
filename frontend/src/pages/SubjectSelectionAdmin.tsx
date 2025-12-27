@@ -1,0 +1,286 @@
+import React, { useState, useEffect } from 'react';
+import Header from '../components/Header';
+import BottomNavigation from '../components/BottomNavigation';
+import { useNavigate } from 'react-router-dom';
+import { getAllSubjects, createSubject, updateSubject, Subject } from '../services/subjectService';
+import { getUsers, User } from '../services/userService';
+import { BookOpen, Scale, Gavel, Landmark, Plus, Edit2 } from "lucide-react";
+import { useAuth } from '../hooks/useAuth';
+
+export default function SubjectSelectionAdmin() {
+    const navigate = useNavigate();
+    const { user, isLoading: authLoading } = useAuth();
+    const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [teachers, setTeachers] = useState<User[]>([]);
+
+    // Form state
+    const [newSubjectName, setNewSubjectName] = useState('');
+    const [selectedTeacherId, setSelectedTeacherId] = useState<number | ''>('');
+    const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+    const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+    useEffect(() => {
+        fetchData();
+    }, [user, authLoading]);
+
+    const fetchData = async () => {
+        if (authLoading) return;
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const [subjectsData, usersData] = await Promise.all([
+                getAllSubjects(),
+                getUsers()
+            ]);
+            setSubjects(subjectsData);
+            setTeachers(usersData.filter(u => u.role === 'Profesor'));
+        } catch (error) {
+            console.error("Error fetching data:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSelectSubject = (subjectId: number) => {
+        navigate(`/gestion-asignaturas/${subjectId}`);
+    };
+
+    const handleEditClick = (e: React.MouseEvent, subject: Subject) => {
+        e.stopPropagation(); // Prevent navigation
+        setEditingSubject(subject);
+        setNewSubjectName(subject.subject_name);
+        setSelectedTeacherId(subject.user_id);
+        setShowModal(true);
+    };
+
+    const handleCloseModal = () => {
+        setShowModal(false);
+        setNewSubjectName('');
+        setSelectedTeacherId('');
+        setEditingSubject(null);
+        setToast(null);
+    };
+
+    const handleSaveSubject = async () => {
+        if (!newSubjectName.trim()) {
+            setToast({ type: 'error', text: 'El nombre de la asignatura es obligatorio' });
+            return;
+        }
+        if (!selectedTeacherId) {
+            setToast({ type: 'error', text: 'Debe seleccionar un profesor' });
+            return;
+        }
+
+        try {
+            if (editingSubject) {
+                await updateSubject(editingSubject.subject_id, {
+                    subject_name: newSubjectName,
+                    user_id: Number(selectedTeacherId)
+                });
+                setToast({ type: 'success', text: 'Asignatura actualizada exitosamente' });
+            } else {
+                await createSubject({
+                    subject_name: newSubjectName,
+                    user_id: Number(selectedTeacherId)
+                });
+                setToast({ type: 'success', text: 'Asignatura creada exitosamente' });
+            }
+
+            handleCloseModal();
+            // Override closing toast clearing for success message
+            setToast({ type: 'success', text: editingSubject ? 'Asignatura actualizada exitosamente' : 'Asignatura creada exitosamente' });
+
+            fetchData(); // Refresh list
+        } catch (error) {
+            console.error("Error saving subject:", error);
+            setToast({ type: 'error', text: 'Error al guardar la asignatura' });
+        } finally {
+            setTimeout(() => setToast(null), 3000);
+        }
+    };
+
+    // Helper to get random/consistent icon based on name
+    const getIcon = (name: string) => {
+        if (name.includes("Penal")) return <Gavel className="w-6 h-6 text-[#003366]" />;
+        if (name.includes("Constitucional")) return <Landmark className="w-6 h-6 text-[#003366]" />;
+        if (name.includes("Civil")) return <Scale className="w-6 h-6 text-[#003366]" />;
+        return <BookOpen className="w-6 h-6 text-[#003366]" />;
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-100 flex flex-col">
+            <Header variant="default" title="Facultad de Derecho" />
+
+            <main className="flex-1 z-10 w-full px-4 sm:px-6 lg:px-8 pt-28 pb-24">
+                <div className="max-w-6xl mx-auto space-y-6">
+
+                    {/* Header Section */}
+                    <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[#003366] flex justify-between items-center">
+                        <div>
+                            <h1 className="text-2xl font-bold text-[#003366] mb-1">Gestión de Asignaturas (Admin)</h1>
+                            <p className="text-sm text-gray-500">
+                                Administre todas las asignaturas y sus profesores responsables.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setShowModal(true)}
+                            className="bg-[#003366] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#004488] transition-colors shadow-sm"
+                        >
+                            <Plus className="w-5 h-5" />
+                            <span>Agregar Asignatura</span>
+                        </button>
+                    </div>
+
+                    {loading ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="h-32 bg-gray-200 rounded-lg animate-pulse"></div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {subjects.map((subject) => (
+                                <div
+                                    key={subject.subject_id}
+                                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4"
+                                >
+                                    <div className="p-3 bg-blue-50 rounded-lg">
+                                        {getIcon(subject.subject_name)}
+                                    </div>
+
+                                    <div className="flex-1">
+                                        <h3 className="font-bold text-gray-800">
+                                            {subject.subject_name}
+                                        </h3>
+                                        {/* Display Teacher Name if available (would need relation in backend or map efficiently) */}
+                                        {/* Assuming subject objects might eventually have user relation, currently backend find returns relations: ['user'] */}
+                                        {(subject as any).user && (
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Prof. {(subject as any).user.user_name}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <button
+                                        onClick={(e) => handleEditClick(e, subject)}
+                                        className="p-2 text-blue-600 hover:bg-blue-50 border border-gray-200 rounded-lg transition-colors"
+                                        title="Editar asignatura"
+                                    >
+                                        <Edit2 className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            ))}
+
+                            {subjects.length === 0 && (
+                                <div className="col-span-full text-center py-12">
+                                    <p className="text-gray-500">No se encontraron asignaturas.</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </main>
+
+            {/* Modal - Transparent Background as requested */}
+            {showModal && (
+                <div className="fixed inset-0 flex items-center justify-center z-50">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
+                        onClick={handleCloseModal}
+                    />
+
+                    {/* Modal Content */}
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6 z-10 relative animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-[#003366]">
+                                {editingSubject ? 'Editar Asignatura' : 'Agregar Nueva Asignatura'}
+                            </h2>
+                            <button
+                                onClick={handleCloseModal}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <span className="text-2xl">&times;</span>
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Nombre de la Asignatura
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newSubjectName}
+                                    onChange={(e) => setNewSubjectName(e.target.value)}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003366] focus:border-transparent outline-none transition-all"
+                                    placeholder="Ej. Derecho Civil I"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Profesor Encargado
+                                </label>
+                                <select
+                                    value={selectedTeacherId}
+                                    onChange={(e) => setSelectedTeacherId(Number(e.target.value))}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003366] focus:border-transparent outline-none transition-all"
+                                >
+                                    <option value="">Seleccione un profesor...</option>
+                                    {teachers.map((teacher) => (
+                                        <option key={teacher.user_id} value={teacher.user_id}>
+                                            {teacher.user_name} ({teacher.rut})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 flex gap-3">
+                            <button
+                                onClick={handleCloseModal}
+                                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleSaveSubject}
+                                className="flex-1 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition-colors font-medium"
+                            >
+                                {editingSubject ? 'Actualizar Asignatura' : 'Guardar Asignatura'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Toast Notification */}
+            {toast && (
+                <div className={`fixed right-6 bottom-24 max-w-xs p-4 rounded-lg shadow-lg flex items-center gap-3 z-[60] animate-in slide-in-from-right duration-300 ${toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                    }`}>
+                    <div className="flex-shrink-0">
+                        {toast.type === 'success' ? (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                        ) : (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        )}
+                    </div>
+                    <p className="text-sm font-medium">{toast.text}</p>
+                </div>
+            )}
+
+            <BottomNavigation />
+        </div>
+    );
+}

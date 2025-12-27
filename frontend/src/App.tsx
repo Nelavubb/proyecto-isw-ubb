@@ -15,6 +15,7 @@ import ThemeSelect from "./pages/ThemeSelect";
 import Comisiones from "./pages/Comisiones";
 import AddGuidelines from "./pages/AddGuidelines";
 import SubjectSelectionTeacher from "./pages/SubjectSelectionTeacher";
+import SubjectSelectionAdmin from "./pages/SubjectSelectionAdmin";
 import Users from "./pages/Users";
 import HistorySubjectSelect from "./pages/HistorySubjectSelect";
 import HistoryEvaluationList from "./pages/HistoryEvaluationList";
@@ -171,6 +172,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <ThemeQuestionManager />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin: Gestión de Asignaturas */}
+          <Route
+            path="/admin/subjects"
+            element={
+              <ProtectedRoute>
+                <SubjectSelectionAdmin />
               </ProtectedRoute>
             }
           />

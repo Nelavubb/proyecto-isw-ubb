@@ -50,4 +50,75 @@ router.get('/by-user/:userId', async (req, res) => {
     }
 });
 
+// GET /api/subjects
+// Obtiene todas las asignaturas
+router.get('/', async (req, res) => {
+    try {
+        const subjectRepository = AppDataSource.getRepository(Subject);
+        const subjects = await subjectRepository.find({
+            relations: ['user'] // Incluir información del profesor
+        });
+        res.json(subjects);
+    } catch (error) {
+        console.error("Error al obtener todas las asignaturas:", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+});
+
+// POST /api/subjects
+// Crea una nueva asignatura
+router.post('/', async (req, res) => {
+    const { subject_name, user_id } = req.body;
+
+    if (!subject_name || !user_id) {
+        return res.status(400).json({ message: "Nombre de asignatura y profesor son obligatorios" });
+    }
+
+    try {
+        const subjectRepository = AppDataSource.getRepository(Subject);
+
+        // Verificar si ya existe
+        const existingSubject = await subjectRepository.findOne({ where: { subject_name } });
+        if (existingSubject) {
+            return res.status(400).json({ message: "La asignatura ya existe" });
+        }
+
+        const newSubject = subjectRepository.create({
+            subject_name,
+            user_id
+        });
+
+        await subjectRepository.save(newSubject);
+        res.status(201).json(newSubject);
+    } catch (error) {
+        console.error("Error al crear asignatura:", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+});
+
+// PUT /api/subjects/:id
+// Actualiza una asignatura existente
+router.put('/:id', async (req, res) => {
+    const { id } = req.params;
+    const { subject_name, user_id } = req.body;
+
+    try {
+        const subjectRepository = AppDataSource.getRepository(Subject);
+        const subject = await subjectRepository.findOne({ where: { subject_id: parseInt(id) } });
+
+        if (!subject) {
+            return res.status(404).json({ message: "Asignatura no encontrada" });
+        }
+
+        if (subject_name) subject.subject_name = subject_name;
+        if (user_id) subject.user_id = user_id;
+
+        await subjectRepository.save(subject);
+        res.json(subject);
+    } catch (error) {
+        console.error("Error al actualizar asignatura:", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+});
+
 export default router;
