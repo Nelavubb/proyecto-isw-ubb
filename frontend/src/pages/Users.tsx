@@ -12,7 +12,7 @@ export default function Users() {
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
-    
+
     const [formData, setFormData] = useState({
         rut: '',
         user_name: '',
@@ -111,7 +111,7 @@ export default function Users() {
                         </div>
                         <button
                             onClick={() => handleOpenModal()}
-                            className="px-6 py-3 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition font-medium flex items-center gap-2 whitespace-nowrap"
+                            className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

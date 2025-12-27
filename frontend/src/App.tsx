@@ -12,13 +12,10 @@ import Practice from "./pages/Practice";
 import RealizacionEvaluacion from "./pages/RealizarEvaluacion";
 import SubjectSelect from "./pages/SubjectSelect";
 import ThemeSelect from "./pages/ThemeSelect";
-import QuestionBank from "./pages/QuestionBank";
-import AddQuestion from "./pages/AddQuestion";
 import Comisiones from "./pages/Comisiones";
 import AddGuidelines from "./pages/AddGuidelines";
-import SubjectSelection from "./pages/SubjectSelection";
+import SubjectSelectionTeacher from "./pages/SubjectSelectionTeacher";
 import Users from "./pages/Users";
-import EditQuestion from "./pages/EditQuestion";
 import HistorySubjectSelect from "./pages/HistorySubjectSelect";
 import HistoryEvaluationList from "./pages/HistoryEvaluationList";
 import HistoryEvaluationDetail from "./pages/HistoryEvaluationDetail";
@@ -140,37 +137,6 @@ function App() {
             element={<Navigate to="/history/subjects" />}
           />
 
-
-          {/* Banco de Preguntas */}
-          <Route
-            path="/QuestionBank"
-            element={
-              <ProtectedRoute>
-                <QuestionBank />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Agregar Pregunta */}
-          <Route
-            path="/AddQuestion"
-            element={
-              <ProtectedRoute>
-                <AddQuestion />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Modificar Pregunta */}
-          <Route
-            path="/EditQuestion/:id"
-            element={
-              <ProtectedRoute>
-                <EditQuestion />
-              </ProtectedRoute>
-            }
-          />
-
           {/* Gestión de Comisiones */}
           <Route
             path="/comisiones"
@@ -196,7 +162,7 @@ function App() {
             path="/gestion-asignaturas"
             element={
               <ProtectedRoute>
-                <SubjectSelection />
+                <SubjectSelectionTeacher />
               </ProtectedRoute>
             }
           />
