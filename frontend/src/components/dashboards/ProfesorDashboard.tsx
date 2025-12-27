@@ -102,7 +102,7 @@ const ProfesorDashboard = ({ user }: ProfesorDashboardProps) => {
 
           {/* Agregar Preguntas */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Banco de Preguntas</h3>
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Gestionar Asignaturas</h3>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
@@ -110,10 +110,10 @@ const ProfesorDashboard = ({ user }: ProfesorDashboardProps) => {
                   <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className="text-gray-800 font-medium">Agregar preguntas al banco de preguntas.</span>
+                  <span className="text-gray-800 font-medium">Agregar temas y preguntas.</span>
                 </div>
-                <Link to="/QuestionBank" className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm">
-                  Añadir
+                <Link to="/gestion-asignaturas" className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm">
+                  Gestionar
                 </Link>
               </div>
             </div>

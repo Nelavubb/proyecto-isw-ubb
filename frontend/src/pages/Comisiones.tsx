@@ -41,9 +41,9 @@ interface Evaluacion {
 
 // Mock Data
 const MOCK_TEMAS: Tema[] = [
-    { id: 1, nombre: 'Teoría de la ley', asignatura: 'Derecho Civil I'},
-    { id: 2, nombre: 'Acto Jurídico', asignatura: 'Derecho Civil I'},
-    { id: 3, nombre: 'Bases de la Institcionalidad', asignatura: 'Derecho Constitucional'},
+    { id: 1, nombre: 'Teoría de la ley', asignatura: 'Derecho Civil I' },
+    { id: 2, nombre: 'Acto Jurídico', asignatura: 'Derecho Civil I' },
+    { id: 3, nombre: 'Bases de la Institcionalidad', asignatura: 'Derecho Constitucional' },
     { id: 4, nombre: 'Derechos Fundamentales', asignatura: 'Derecho Constitucional' },
 ];
 
@@ -127,15 +127,18 @@ const MOCK_EVALUACIONES: Evaluacion[] = [
 export default function Comisiones() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    
+
     // Leer parámetro step de la URL
     const step = searchParams.get('step');
     
-    // Estado para controlar la vista actual: 'lista' o 'crear'
-    const [vistaActual, setVistaActual] = useState<'lista' | 'crear'>(step === 'crear' ? 'crear' : 'lista');
+    // Estado para controlar la vista actual: 'lista', 'crear' o 'detalle'
+    const [vistaActual, setVistaActual] = useState<'lista' | 'crear' | 'detalle'>(step === 'crear' ? 'crear' : 'lista');
     
     // Estado para las evaluaciones
     const [evaluaciones, setEvaluaciones] = useState<Evaluacion[]>(MOCK_EVALUACIONES);
+    
+    // Estado para la evaluación seleccionada (vista detalle)
+    const [evaluacionSeleccionada, setEvaluacionSeleccionada] = useState<Evaluacion | null>(null);
     
     // Estado para las pautas
     const [pautas, setPautas] = useState<Guideline[]>([]);
@@ -179,7 +182,7 @@ export default function Comisiones() {
         const temaId = parseInt(e.target.value);
         const tema = MOCK_TEMAS.find(t => t.id === temaId) || null;
         setTemaSeleccionado(tema);
-        
+
         // Buscar si existe pauta para este tema
         if (tema) {
             const pauta = pautas.find(p => p.theme_id === tema.id);
@@ -237,6 +240,12 @@ export default function Comisiones() {
         setTemaSeleccionado(null);
         setNombrePauta('');
         setComisiones([]);
+        setEvaluacionSeleccionada(null);
+    };
+
+    const handleVerDetalle = (evaluacion: Evaluacion) => {
+        setEvaluacionSeleccionada(evaluacion);
+        setVistaActual('detalle');
     };
 
     const handleGuardarEvaluacion = () => {
@@ -309,7 +318,7 @@ export default function Comisiones() {
                             </div>
                             <button
                                 onClick={handleCrearEvaluacion}
-                                className="inline-flex items-center px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm font-medium shadow-sm"
+                                className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm"
                             >
                                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -366,7 +375,7 @@ export default function Comisiones() {
                                                     {getEstadoBadge(evaluacion.estado)}
                                                 </div>
                                                 <p className="text-sm text-gray-600 mb-3">{evaluacion.tema.asignatura}</p>
-                                                
+
                                                 <div className="flex flex-wrap gap-4 text-sm text-gray-500">
                                                     <div className="flex items-center gap-1">
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -390,7 +399,11 @@ export default function Comisiones() {
                                             </div>
 
                                             <div className="flex items-center gap-2">
-                                                <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Ver detalles">
+                                                <button 
+                                                    onClick={() => handleVerDetalle(evaluacion)}
+                                                    className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" 
+                                                    title="Ver detalles"
+                                                >
                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -416,6 +429,191 @@ export default function Comisiones() {
                                 ))}
                             </div>
                         )}
+
+                    </div>
+                </main>
+
+                <BottomNavigation />
+            </div>
+        );
+    }
+
+    // ==================== VISTA DE DETALLE ====================
+    if (vistaActual === 'detalle' && evaluacionSeleccionada) {
+        return (
+            <div className="min-h-screen bg-gray-100 flex flex-col">
+                <Header variant="default" title="Facultad de Derecho" />
+
+                <main className="flex-1 z-10 w-full px-4 sm:px-6 lg:px-8 pt-28 pb-24">
+                    <div className="max-w-6xl mx-auto space-y-6">
+
+                        {/* Header Section con botón de volver */}
+                        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[#003366] min-h-[112px] flex flex-col justify-center">
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={handleVolverALista}
+                                    className="p-2 text-gray-500 hover:text-[#003366] hover:bg-gray-100 rounded-lg transition"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                    </svg>
+                                </button>
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-3">
+                                        <h1 className="text-2xl font-bold text-[#003366]">{evaluacionSeleccionada.tema.nombre}</h1>
+                                        {getEstadoBadge(evaluacionSeleccionada.estado)}
+                                    </div>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        {evaluacionSeleccionada.tema.asignatura} • {evaluacionSeleccionada.nombrePauta}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Resumen de la evaluación */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p className="text-2xl font-bold text-gray-800">{evaluacionSeleccionada.comisiones.length}</p>
+                                        <p className="text-sm text-gray-500">Comisiones</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-green-100 rounded-lg">
+                                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p className="text-2xl font-bold text-gray-800">{evaluacionSeleccionada.totalEstudiantes}</p>
+                                        <p className="text-sm text-gray-500">Estudiantes</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-purple-100 rounded-lg">
+                                        <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p className="text-2xl font-bold text-gray-800">{formatDateShort(evaluacionSeleccionada.fechaCreacion)}</p>
+                                        <p className="text-sm text-gray-500">Fecha de creación</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Título de sección */}
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-[#003366]">Comisiones de esta evaluación</h2>
+                        </div>
+
+                        {/* Lista de Comisiones */}
+                        <div className="grid gap-4">
+                            {evaluacionSeleccionada.comisiones.map((comision) => (
+                                <div
+                                    key={comision.id}
+                                    className="bg-white rounded-lg shadow-sm border border-gray-100 p-5 hover:shadow-md transition"
+                                >
+                                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${comision.modalidad === 'presencial' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                                                    {comision.modalidad === 'presencial' ? '📍 Presencial' : '💻 Online'}
+                                                </span>
+                                                <span className="text-sm text-gray-500">Comisión #{comision.id}</span>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                <div className="flex items-center gap-2 text-gray-700">
+                                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
+                                                    <span className="text-sm font-medium capitalize">{formatDate(comision.fecha)}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-gray-700">
+                                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    <span className="text-sm">{comision.hora} hrs</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 text-gray-700 mb-4">
+                                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                </svg>
+                                                <span className="text-sm">{comision.lugar}</span>
+                                            </div>
+
+                                            {/* Lista de estudiantes */}
+                                            <div className="border-t border-gray-100 pt-3">
+                                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                                                    Estudiantes ({comision.estudiantes.length})
+                                                </p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {comision.estudiantes.map((estudiante) => (
+                                                        <span
+                                                            key={estudiante.id}
+                                                            className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700"
+                                                        >
+                                                            {estudiante.nombre}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Botones de acción */}
+                                        <div className="flex flex-col gap-2 min-w-[160px]">
+                                            {evaluacionSeleccionada.estado !== 'finalizada' && (
+                                                <>
+                                                    <button
+                                                        onClick={() => navigate(`/RealizarEvaluacion?evaluacionId=${evaluacionSeleccionada.id}&comisionId=${comision.id}`)}
+                                                        className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
+                                                    >
+                                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        Realizar Evaluación
+                                                    </button>
+                                                    <button
+                                                        className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium"
+                                                    >
+                                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                        </svg>
+                                                        Editar Comisión
+                                                    </button>
+                                                </>
+                                            )}
+                                            {evaluacionSeleccionada.estado === 'finalizada' && (
+                                                <button
+                                                    className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                                                >
+                                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                    </svg>
+                                                    Ver Resultados
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
 
                     </div>
                 </main>
