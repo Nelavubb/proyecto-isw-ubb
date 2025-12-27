@@ -48,11 +48,11 @@ export const Commission = new EntitySchema({
         },
         theme: {
             target: 'theme',
-            type: 'one-to-one',
+            type: 'many-to-one',
             joinColumn: {
                 name: 'theme_id',
             },
-            onDelete: 'RESTRICT',
+            onDelete: 'CASCADE',
         },
     },
 });
