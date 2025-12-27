@@ -5,6 +5,37 @@ import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { createUser } from '../../services/userService';
 
+// Función para generar contraseña usando los últimos 6 dígitos del RUT
+const generatePassword = (rut: string): string => {
+    // Remover el dígito verificador (todo después del guion)
+    const rutNumbers = rut.split('-')[0];
+    // Obtener los últimos 6 dígitos
+    return rutNumbers.slice(-6);
+};
+
+// Función de validación
+const validateUserData = (data: { rut: string; user_name: string; role: string }): string | null => {
+    if (!data.rut) return 'El RUT es obligatorio';
+    if (!data.user_name) return 'El nombre de usuario es obligatorio';
+    if (!data.role) return 'El rol es obligatorio';
+    
+    // Validar formato del RUT (XXX-X)
+    if (!/^[0-9]+-[0-9kK]$/.test(data.rut)) {
+        return 'El RUT debe tener el formato: solo números, un guion y el dígito verificador (número o k/K)';
+    }
+    
+    // Validar nombre
+    if (data.user_name.length < 2) return 'El nombre debe tener al menos 2 caracteres';
+    if (data.user_name.length > 100) return 'El nombre no puede exceder 100 caracteres';
+    
+    // Validar rol
+    if (!['Estudiante', 'Profesor', 'Administrador'].includes(data.role)) {
+        return 'El rol debe ser: Estudiante, Profesor o Administrador';
+    }
+    
+    return null;
+};
+
 interface AdministradorDashboardProps {
   user: User;
 }
@@ -12,30 +43,45 @@ interface AdministradorDashboardProps {
 const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [formData, setFormData] = useState<{ rut: string; user_name: string; role: string; password: string }>({
     rut: '',
     user_name: '',
     role: '',
+    password: '',
   });
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setFormData({ rut: '', user_name: '', role: '' });
+    setFormData({ rut: '', user_name: '', role: '', password: '' });
   };
 
   const handleSaveUser = async () => {
     try {
-      if (!formData.rut || !formData.user_name || !formData.role) {
-        alert('Por favor, completa todos los campos');
+      // Validar datos
+      const validationError = validateUserData(formData);
+      if (validationError) {
+        setToast({ type: 'error', text: validationError });
+        setTimeout(() => setToast(null), 3000);
         return;
       }
 
-      await createUser(formData);
-      alert('Usuario agregado exitosamente');
+      // Generar contraseña usando últimos 6 dígitos del RUT
+      const password = generatePassword(formData.rut);
+      
+      // Crear usuario con contraseña
+      await createUser({
+        ...formData,
+        password
+      });
+      
+      setToast({ type: 'success', text: 'Usuario agregado exitosamente' });
+      setTimeout(() => setToast(null), 3000);
       handleCloseModal();
     } catch (error) {
       console.error('Error al guardar usuario:', error);
-      alert('Error al guardar el usuario');
+      setToast({ type: 'error', text: 'Error al guardar el usuario' });
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
@@ -258,6 +304,27 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed right-6 bottom-24 max-w-xs p-4 rounded-lg shadow-lg flex items-center gap-3 z-50 ${
+          toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+        }`}>
+          <div className="flex-shrink-0">
+            {toast.type === 'success' && (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+            {toast.type === 'error' && (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+          </div>
+          <p className="text-sm font-medium">{toast.text}</p>
         </div>
       )}
 
