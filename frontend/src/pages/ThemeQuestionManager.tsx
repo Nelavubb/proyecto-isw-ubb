@@ -23,9 +23,12 @@ interface LocalTheme {
 }
 
 
+import { useAuth } from '../hooks/useAuth';
+
 export default function SubjectThemeManager() {
     const { subjectId } = useParams<{ subjectId: string }>();
     const navigate = useNavigate();
+    const { user, isLoading: authLoading } = useAuth();
 
     const [subjectName, setSubjectName] = useState<string>('');
     const [loading, setLoading] = useState(true);
@@ -72,10 +75,13 @@ export default function SubjectThemeManager() {
 
     useEffect(() => {
         const fetchSubjectDetails = async () => {
-            if (!subjectId) return;
+            if (authLoading) return;
+            if (!subjectId || !user) return;
+
             try {
                 // 1. Fetch Subject Info
-                const subjects = await getSubjectsByUser(3);
+                const userId = parseInt(user.id);
+                const subjects = await getSubjectsByUser(userId);
                 const currentSubject = subjects.find(s => s.subject_id === parseInt(subjectId));
 
                 if (currentSubject) {
@@ -108,6 +114,7 @@ export default function SubjectThemeManager() {
 
                     setTemasExistentes(themesWithQuestions);
                 } else {
+                    console.error("Subject not found or access denied");
                     navigate('/gestion-temas');
                 }
             } catch (error) {
@@ -118,7 +125,7 @@ export default function SubjectThemeManager() {
         };
 
         fetchSubjectDetails();
-    }, [subjectId, navigate]);
+    }, [subjectId, navigate, user, authLoading]);
 
     const handleGuardarTema = async () => {
         if (!temaActual.nombre.trim()) return;
