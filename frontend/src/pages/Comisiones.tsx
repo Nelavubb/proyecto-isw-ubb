@@ -3,12 +3,24 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
 import { getGuidelines, Guideline } from '../services/guidelineService';
+import { getAllThemes, Theme } from '../services/themeService';
+import { getSubjectsByUser, Subject } from '../services/subjectService';
+import { 
+    getCommissions, 
+    createCommission, 
+    deleteCommission,
+    getAllStudents,
+    Commission as CommissionAPI,
+    Estudiante as EstudianteAPI
+} from '../services/commissionService';
+import { useAuth } from '../hooks/useAuth';
 
 // Interfaces para los datos
 interface Tema {
     id: number;
     nombre: string;
     asignatura: string;
+    subjectId?: number;
     nombrePauta?: string;
     pautaAsignada?: boolean;
 }
@@ -17,16 +29,18 @@ interface Estudiante {
     id: number;
     nombre: string;
     rut: string;
-    email: string;
+    email?: string;
 }
 
 interface Comision {
     id: number;
+    nombre?: string;
     fecha: string;
     hora: string;
     modalidad: 'presencial' | 'online';
     lugar: string;
     estudiantes: Estudiante[];
+    evaluada?: boolean;
 }
 
 interface Evaluacion {
@@ -39,94 +53,12 @@ interface Evaluacion {
     totalEstudiantes: number;
 }
 
-// Mock Data
-const MOCK_TEMAS: Tema[] = [
-    { id: 1, nombre: 'Teoría de la ley', asignatura: 'Derecho Civil I'},
-    { id: 2, nombre: 'Acto Jurídico', asignatura: 'Derecho Civil I'},
-    { id: 3, nombre: 'Bases de la Institcionalidad', asignatura: 'Derecho Constitucional'},
-    { id: 4, nombre: 'Derechos Fundamentales', asignatura: 'Derecho Constitucional' },
-];
-
-const MOCK_ESTUDIANTES: Estudiante[] = [
-    { id: 1, nombre: 'Juan Pérez González', rut: '12.345.678-9', email: 'juan.perez@alumnos.ubb.cl' },
-    { id: 2, nombre: 'María López Silva', rut: '13.456.789-0', email: 'maria.lopez@alumnos.ubb.cl' },
-    { id: 3, nombre: 'Carlos Muñoz Vera', rut: '14.567.890-1', email: 'carlos.munoz@alumnos.ubb.cl' },
-    { id: 4, nombre: 'Ana Rodríguez Castro', rut: '15.678.901-2', email: 'ana.rodriguez@alumnos.ubb.cl' },
-    { id: 5, nombre: 'Pedro Sánchez Díaz', rut: '16.789.012-3', email: 'pedro.sanchez@alumnos.ubb.cl' },
-    { id: 6, nombre: 'Sofía Hernández Pinto', rut: '17.890.123-4', email: 'sofia.hernandez@alumnos.ubb.cl' },
-    { id: 7, nombre: 'Diego Torres Ramos', rut: '18.901.234-5', email: 'diego.torres@alumnos.ubb.cl' },
-    { id: 8, nombre: 'Valentina Morales Fuentes', rut: '19.012.345-6', email: 'valentina.morales@alumnos.ubb.cl' },
-];
-
-// Mock de evaluaciones existentes del profesor
-const MOCK_EVALUACIONES: Evaluacion[] = [
-    {
-        id: 1,
-        tema: MOCK_TEMAS[0],
-        nombrePauta: 'Pauta Evaluación Penal 2024',
-        comisiones: [
-            {
-                id: 1,
-                fecha: '2025-01-15',
-                hora: '09:00',
-                modalidad: 'presencial',
-                lugar: 'Sala 301, Edificio de Derecho',
-                estudiantes: [MOCK_ESTUDIANTES[0], MOCK_ESTUDIANTES[1], MOCK_ESTUDIANTES[2]],
-            },
-            {
-                id: 2,
-                fecha: '2025-01-15',
-                hora: '14:00',
-                modalidad: 'online',
-                lugar: 'https://meet.google.com/abc-defg-hij',
-                estudiantes: [MOCK_ESTUDIANTES[3], MOCK_ESTUDIANTES[4]],
-            },
-        ],
-        estado: 'programada',
-        fechaCreacion: '2024-12-20',
-        totalEstudiantes: 5,
-    },
-    {
-        id: 2,
-        tema: MOCK_TEMAS[2],
-        nombrePauta: 'Rúbrica Procesal Oral',
-        comisiones: [
-            {
-                id: 1,
-                fecha: '2025-01-20',
-                hora: '10:00',
-                modalidad: 'presencial',
-                lugar: 'Sala 205, Edificio de Derecho',
-                estudiantes: [MOCK_ESTUDIANTES[5], MOCK_ESTUDIANTES[6], MOCK_ESTUDIANTES[7]],
-            },
-        ],
-        estado: 'borrador',
-        fechaCreacion: '2024-12-22',
-        totalEstudiantes: 3,
-    },
-    {
-        id: 3,
-        tema: MOCK_TEMAS[1],
-        nombrePauta: 'Pauta Contratos 2024',
-        comisiones: [
-            {
-                id: 1,
-                fecha: '2024-12-10',
-                hora: '09:00',
-                modalidad: 'presencial',
-                lugar: 'Sala 101, Edificio de Derecho',
-                estudiantes: [MOCK_ESTUDIANTES[0], MOCK_ESTUDIANTES[2], MOCK_ESTUDIANTES[4], MOCK_ESTUDIANTES[6]],
-            },
-        ],
-        estado: 'finalizada',
-        fechaCreacion: '2024-11-15',
-        totalEstudiantes: 4,
-    },
-];
+// Los datos ahora se cargan desde el backend
 
 export default function Comisiones() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { user } = useAuth();
     
     // Leer parámetro step de la URL
     const step = searchParams.get('step');
@@ -134,8 +66,9 @@ export default function Comisiones() {
     // Estado para controlar la vista actual: 'lista', 'crear' o 'detalle'
     const [vistaActual, setVistaActual] = useState<'lista' | 'crear' | 'detalle'>(step === 'crear' ? 'crear' : 'lista');
     
-    // Estado para las evaluaciones
-    const [evaluaciones, setEvaluaciones] = useState<Evaluacion[]>(MOCK_EVALUACIONES);
+    // Estado para las evaluaciones (cargadas desde backend)
+    const [evaluaciones, setEvaluaciones] = useState<Evaluacion[]>([]);
+    const [loadingEvaluaciones, setLoadingEvaluaciones] = useState(true);
     
     // Estado para la evaluación seleccionada (vista detalle)
     const [evaluacionSeleccionada, setEvaluacionSeleccionada] = useState<Evaluacion | null>(null);
@@ -143,6 +76,13 @@ export default function Comisiones() {
     // Estado para las pautas
     const [pautas, setPautas] = useState<Guideline[]>([]);
     const [loadingPautas, setLoadingPautas] = useState(false);
+
+    // Estado para temas y estudiantes (cargados desde backend)
+    const [temas, setTemas] = useState<Tema[]>([]);
+    const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
+    const [loadingTemas, setLoadingTemas] = useState(false);
+    const [loadingEstudiantes, setLoadingEstudiantes] = useState(false);
+    const [asignaturas, setAsignaturas] = useState<Subject[]>([]);
 
     // Estados para la creación de evaluación
     const [temaSeleccionado, setTemaSeleccionado] = useState<Tema | null>(null);
@@ -161,10 +101,70 @@ export default function Comisiones() {
         estudiantesSeleccionados: [] as number[],
     });
 
-    // Cargar pautas al montarse el componente
+    // Cargar datos al montarse el componente
     useEffect(() => {
         loadPautas();
+        loadTemas();
+        loadEstudiantes();
+        loadComisiones();
     }, []);
+
+    const loadComisiones = async () => {
+        try {
+            setLoadingEvaluaciones(true);
+            const userId = user?.id ? parseInt(user.id) : undefined;
+            const data = await getCommissions(userId ? { userId } : undefined);
+            
+            // Agrupar comisiones por tema para crear "evaluaciones"
+            const evaluacionesMap = new Map<number, Evaluacion>();
+            
+            for (const commission of data) {
+                const themeId = commission.theme_id;
+                
+                if (!evaluacionesMap.has(themeId)) {
+                    evaluacionesMap.set(themeId, {
+                        id: themeId,
+                        tema: {
+                            id: themeId,
+                            nombre: commission.theme?.theme_name || 'Tema sin nombre',
+                            asignatura: '', // Se puede obtener del backend si es necesario
+                        },
+                        nombrePauta: 'Pauta asociada',
+                        comisiones: [],
+                        estado: 'programada',
+                        fechaCreacion: commission.date,
+                        totalEstudiantes: 0,
+                    });
+                }
+                
+                const evaluacion = evaluacionesMap.get(themeId)!;
+                const estudiantes: Estudiante[] = commission.estudiantes?.map(e => ({
+                    id: e.user_id,
+                    nombre: e.user_name,
+                    rut: e.rut,
+                })) || [];
+                
+                evaluacion.comisiones.push({
+                    id: commission.commission_id,
+                    nombre: commission.commission_name,
+                    fecha: commission.date,
+                    hora: commission.time,
+                    modalidad: commission.location?.includes('http') ? 'online' : 'presencial',
+                    lugar: commission.location,
+                    estudiantes: estudiantes,
+                    evaluada: false,
+                });
+                
+                evaluacion.totalEstudiantes += estudiantes.length;
+            }
+            
+            setEvaluaciones(Array.from(evaluacionesMap.values()));
+        } catch (error) {
+            console.error('Error al cargar comisiones:', error);
+        } finally {
+            setLoadingEvaluaciones(false);
+        }
+    };
 
     const loadPautas = async () => {
         try {
@@ -178,9 +178,57 @@ export default function Comisiones() {
         }
     };
 
+    const loadTemas = async () => {
+        try {
+            setLoadingTemas(true);
+            const themesData = await getAllThemes();
+            // Cargar asignaturas del usuario para obtener los nombres
+            const userId = user?.id ? parseInt(user.id) : undefined;
+            const subjectsData = userId ? await getSubjectsByUser(userId) : [];
+            setAsignaturas(subjectsData);
+            
+            // Transformar los temas al formato esperado
+            const temasTransformados: Tema[] = themesData.map((theme: Theme) => {
+                const asignatura = subjectsData.find((s: Subject) => s.subject_id === parseInt(theme.subject_id as unknown as string));
+                return {
+                    id: theme.theme_id,
+                    nombre: theme.theme_name,
+                    asignatura: asignatura?.subject_name || 'Sin asignatura',
+                    subjectId: theme.subject_id as unknown as number,
+                };
+            });
+            
+            setTemas(temasTransformados);
+        } catch (error) {
+            console.error('Error al cargar temas:', error);
+        } finally {
+            setLoadingTemas(false);
+        }
+    };
+
+    const loadEstudiantes = async () => {
+        try {
+            setLoadingEstudiantes(true);
+            const data = await getAllStudents();
+            
+            // Transformar al formato esperado
+            const estudiantesTransformados: Estudiante[] = data.map((e: EstudianteAPI) => ({
+                id: e.user_id,
+                nombre: e.user_name,
+                rut: e.rut || 'Sin RUT',
+            }));
+            
+            setEstudiantes(estudiantesTransformados);
+        } catch (error) {
+            console.error('Error al cargar estudiantes:', error);
+        } finally {
+            setLoadingEstudiantes(false);
+        }
+    };
+
     const handleTemaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const temaId = parseInt(e.target.value);
-        const tema = MOCK_TEMAS.find(t => t.id === temaId) || null;
+        const tema = temas.find(t => t.id === temaId) || null;
         setTemaSeleccionado(tema);
         
         // Buscar si existe pauta para este tema
@@ -202,7 +250,7 @@ export default function Comisiones() {
     };
 
     const handleAgendarComision = () => {
-        const estudiantesAsignados = MOCK_ESTUDIANTES.filter(e =>
+        const estudiantesAsignados = estudiantes.filter(e =>
             nuevaComision.estudiantesSeleccionados.includes(e.id)
         );
 
@@ -248,26 +296,38 @@ export default function Comisiones() {
         setVistaActual('detalle');
     };
 
-    const handleGuardarEvaluacion = () => {
-        if (!temaSeleccionado || comisiones.length === 0) return;
+    const handleGuardarEvaluacion = async () => {
+        if (!temaSeleccionado || comisiones.length === 0 || !user?.id) return;
 
-        const totalEstudiantes = comisiones.reduce((acc, c) => acc + c.estudiantes.length, 0);
+        try {
+            const userId = parseInt(user.id);
+            
+            // Crear cada comisión en el backend
+            for (const comision of comisiones) {
+                const commissionData = {
+                    commission_name: `Comisión ${comision.id} - ${temaSeleccionado.nombre}`,
+                    user_id: userId,
+                    theme_id: temaSeleccionado.id,
+                    guideline_id: pautaSeleccionada?.guidline_id,
+                    date: comision.fecha,
+                    time: comision.hora,
+                    location: comision.lugar,
+                    estudiantes: comision.estudiantes.map(e => e.id),
+                };
+                
+                await createCommission(commissionData);
+            }
 
-        const nuevaEvaluacion: Evaluacion = {
-            id: evaluaciones.length + 1,
-            tema: temaSeleccionado,
-            nombrePauta: nombrePauta || 'Sin pauta asignada',
-            comisiones: comisiones,
-            estado: 'programada',
-            fechaCreacion: new Date().toISOString().split('T')[0],
-            totalEstudiantes: totalEstudiantes,
-        };
-
-        setEvaluaciones([...evaluaciones, nuevaEvaluacion]);
-        handleVolverALista();
+            // Recargar las comisiones desde el backend
+            await loadComisiones();
+            handleVolverALista();
+        } catch (error) {
+            console.error('Error al guardar evaluación:', error);
+            alert('Error al guardar la evaluación. Por favor, intente de nuevo.');
+        }
     };
 
-    const estudiantesFiltrados = MOCK_ESTUDIANTES.filter(e =>
+    const estudiantesFiltrados = estudiantes.filter(e =>
         e.nombre.toLowerCase().includes(searchEstudiante.toLowerCase()) ||
         e.rut.includes(searchEstudiante)
     );
@@ -318,7 +378,7 @@ export default function Comisiones() {
                             </div>
                             <button
                                 onClick={handleCrearEvaluacion}
-                                className="inline-flex items-center px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm font-medium shadow-sm"
+                                className="inline-flex items-center px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm font-bold shadow-sm"
                             >
                                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -329,7 +389,7 @@ export default function Comisiones() {
 
                         {/* Filtros rápidos */}
                         <div className="flex gap-2 flex-wrap">
-                            <button className="px-4 py-2 bg-[#003366] text-white rounded-lg text-sm font-medium">
+                            <button className="px-4 py-2 bg-[#003366] text-white rounded-lg text-sm font-bold">
                                 Todas ({evaluaciones.length})
                             </button>
                             <button className="px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium border border-gray-200 hover:bg-gray-50">
@@ -344,7 +404,14 @@ export default function Comisiones() {
                         </div>
 
                         {/* Lista de Evaluaciones */}
-                        {evaluaciones.length === 0 ? (
+                        {loadingEvaluaciones ? (
+                            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-12 text-center">
+                                <svg className="w-12 h-12 text-[#003366] mx-auto mb-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                <p className="text-gray-500">Cargando evaluaciones...</p>
+                            </div>
+                        ) : evaluaciones.length === 0 ? (
                             <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-12 text-center">
                                 <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -353,7 +420,7 @@ export default function Comisiones() {
                                 <p className="text-gray-500 mb-6">Comience creando su primera evaluación oral.</p>
                                 <button
                                     onClick={handleCrearEvaluacion}
-                                    className="inline-flex items-center px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm font-medium"
+                                    className="inline-flex items-center px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm font-bold"
                                 >
                                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -389,41 +456,19 @@ export default function Comisiones() {
                                                         </svg>
                                                         <span>{evaluacion.comisiones.length} comisión(es)</span>
                                                     </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                        </svg>
-                                                        <span>{evaluacion.nombrePauta}</span>
-                                                    </div>
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-2">
-                                                <button 
-                                                    onClick={() => handleVerDetalle(evaluacion)}
-                                                    className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" 
-                                                    title="Ver detalles"
-                                                >
-                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                    </svg>
-                                                </button>
-                                                {evaluacion.estado !== 'finalizada' && (
-                                                    <>
-                                                        <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Editar">
-                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                            </svg>
-                                                        </button>
-                                                        <button className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Eliminar">
-                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
+                                            <button 
+                                                onClick={() => handleVerDetalle(evaluacion)}
+                                                className="inline-flex items-center px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm font-bold"
+                                            >
+                                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                </svg>
+                                                Gestionar
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
@@ -577,7 +622,7 @@ export default function Comisiones() {
 
                                         {/* Botones de acción */}
                                         <div className="flex flex-col gap-2 min-w-[160px]">
-                                            {evaluacionSeleccionada.estado !== 'finalizada' && (
+                                            {!comision.evaluada ? (
                                                 <>
                                                     <button
                                                         onClick={() => navigate(`/RealizarEvaluacion?evaluacionId=${evaluacionSeleccionada.id}&comisionId=${comision.id}`)}
@@ -597,9 +642,16 @@ export default function Comisiones() {
                                                         </svg>
                                                         Editar Comisión
                                                     </button>
+                                                    <button
+                                                        className="inline-flex items-center justify-center px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition text-sm font-medium"
+                                                    >
+                                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                        Eliminar Comisión
+                                                    </button>
                                                 </>
-                                            )}
-                                            {evaluacionSeleccionada.estado === 'finalizada' && (
+                                            ) : (
                                                 <button
                                                     className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
                                                 >
@@ -662,10 +714,13 @@ export default function Comisiones() {
                             <select
                                 value={temaSeleccionado?.id || ''}
                                 onChange={handleTemaChange}
-                                className="block w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 py-3 px-4 pr-10 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition"
+                                disabled={loadingTemas}
+                                className="block w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 py-3 px-4 pr-10 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition disabled:opacity-50"
                             >
-                                <option value="" disabled>Seleccione un tema para evaluar...</option>
-                                {MOCK_TEMAS.map(tema => (
+                                <option value="" disabled>
+                                    {loadingTemas ? 'Cargando temas...' : 'Seleccione un tema para evaluar...'}
+                                </option>
+                                {temas.map(tema => (
                                     <option key={tema.id} value={tema.id}>
                                         {tema.asignatura} - {tema.nombre}
                                     </option>
@@ -728,7 +783,7 @@ export default function Comisiones() {
                                     ) : (
                                         <button
                                             onClick={() => navigate(`/add-guidelines?themeId=${temaSeleccionado?.id}`)}
-                                            className="inline-flex items-center px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm"
+                                            className="inline-flex items-center px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm font-bold"
                                         >
                                             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -748,7 +803,7 @@ export default function Comisiones() {
                                     </div>
                                     <button
                                         onClick={() => setShowModal(true)}
-                                        className="inline-flex items-center px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm"
+                                        className="inline-flex items-center px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm font-bold"
                                     >
                                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1033,7 +1088,7 @@ export default function Comisiones() {
                                 <button
                                     onClick={handleAgendarComision}
                                     disabled={!nuevaComision.fecha || !nuevaComision.hora || !nuevaComision.lugar || nuevaComision.estudiantesSeleccionados.length === 0}
-                                    className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <span className="flex items-center gap-2">
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
