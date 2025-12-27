@@ -134,22 +134,49 @@ export default function SubjectThemeManager() {
         fetchSubjectDetails();
     }, [subjectId, navigate, user, authLoading]);
 
+    // Estado para errores de validación
+    const [errors, setErrors] = useState<string[]>([]);
+
     const handleGuardarTema = async () => {
-        if (!temaActual.nombre.trim()) return;
+        setErrors([]); // Limpiar errores previos
+        const nombre = temaActual.nombre.trim();
+        const newErrors: string[] = [];
+
+        if (!nombre) {
+            newErrors.push('El nombre del tema es obligatorio');
+        } else {
+            if (nombre.length > 300) {
+                newErrors.push('El nombre del tema no puede exceder los 300 caracteres');
+            }
+
+            if (nombre.length < 2) {
+                newErrors.push('El nombre del tema debe tener al menos 2 caracteres');
+            }
+
+            const validPattern = /^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s-]+$/;
+            if (!validPattern.test(nombre)) {
+                newErrors.push('El nombre del tema solo puede contener letras, números, espacios, guiones y acentos');
+            }
+        }
+
+        if (newErrors.length > 0) {
+            setErrors(newErrors);
+            return;
+        }
 
         try {
             if (temaActual.guardado && temaActual.id !== 0) {
                 // Update existing theme
-                await updateTheme(temaActual.id, { theme_name: temaActual.nombre });
+                await updateTheme(temaActual.id, { theme_name: nombre });
 
-                const themeUpdated = { ...temaActual };
+                const themeUpdated = { ...temaActual, nombre: nombre };
                 setTemasExistentes(temasExistentes.map(t => t.id === temaActual.id ? themeUpdated : t));
                 setTemaActual(themeUpdated);
                 alert("Tema actualizado correctamente");
             } else {
                 // Create new theme
                 const newTheme = await createTheme({
-                    theme_name: temaActual.nombre,
+                    theme_name: nombre,
                     subject_id: parseInt(subjectId!)
                 });
 
@@ -165,9 +192,14 @@ export default function SubjectThemeManager() {
                 setTemaActual(nuevoTemaLocal);
                 alert("Tema creado correctamente");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error saving theme:", error);
-            alert("Error al guardar el tema");
+            if (error.response && error.response.status === 400 && error.response.data.errors) {
+                setErrors(error.response.data.errors);
+            } else {
+                const msg = error.response?.data?.message || "Error al guardar el tema";
+                alert(msg);
+            }
         }
     };
 
@@ -296,6 +328,7 @@ export default function SubjectThemeManager() {
     };
 
     const handleSeleccionarTema = (tema: LocalTheme) => {
+        setErrors([]);
         setTemaSeleccionado(tema);
         setTemaActual(tema);
     };
@@ -316,6 +349,7 @@ export default function SubjectThemeManager() {
     };
 
     const handleNuevoTema = () => {
+        setErrors([]);
         setTemaSeleccionado(null);
         setTemaActual({
             id: 0,
@@ -475,6 +509,31 @@ export default function SubjectThemeManager() {
                                 </div>
 
                                 <div className="space-y-4">
+                                    {/* Error Alert Box */}
+                                    {errors.length > 0 && (
+                                        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
+                                            <div className="flex">
+                                                <div className="flex-shrink-0">
+                                                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                                    </svg>
+                                                </div>
+                                                <div className="ml-3">
+                                                    <h3 className="text-sm font-medium text-red-800">
+                                                        Se encontraron errores:
+                                                    </h3>
+                                                    <div className="mt-2 text-sm text-red-700">
+                                                        <ul className="list-disc pl-5 space-y-1">
+                                                            {errors.map((error, index) => (
+                                                                <li key={index}>{error}</li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div>
                                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
                                             Nombre del Tema <span className="text-red-500">*</span>
@@ -482,10 +541,24 @@ export default function SubjectThemeManager() {
                                         <input
                                             type="text"
                                             value={temaActual.nombre}
-                                            onChange={(e) => setTemaActual({ ...temaActual, nombre: e.target.value })}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                // Strictly enforce limit in state
+                                                if (val.length <= 300) {
+                                                    setTemaActual({ ...temaActual, nombre: val });
+                                                }
+                                                // Clear errors when user types if they were validation errors about empty field
+                                                if (errors.length > 0) setErrors([]);
+                                            }}
+                                            maxLength={300}
                                             className="block w-full bg-gray-50 border border-gray-200 text-gray-700 py-3 px-4 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition"
                                             placeholder="Ej: Cédula I - Bienes"
                                         />
+                                        <div className="flex justify-end mt-1">
+                                            <span className={`text-xs ${temaActual.nombre.length >= 300 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+                                                {temaActual.nombre.length}/300
+                                            </span>
+                                        </div>
                                     </div>
 
                                     <button
