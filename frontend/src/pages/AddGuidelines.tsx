@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { createGuideline, updateGuideline, getGuidelineById, Guideline, Criterion } from '../services/guidelineService';
+import { createGuideline, updateGuideline, getGuidelineById, getGuidelines, Guideline, Criterion } from '../services/guidelineService';
 import { getAllThemes, Theme } from '../services/themeService';
 
 export default function AddGuidelines() {
@@ -104,6 +104,20 @@ export default function AddGuidelines() {
             if (!temaSeleccionado) {
                 alert('Por favor, selecciona un tema');
                 return;
+            }
+
+            // Validar que no existe otra pauta para este tema (solo si es creación nueva)
+            if (!editingGuideline) {
+                try {
+                    const allGuidelines = await getGuidelines();
+                    const existsGuidelineForTheme = allGuidelines.some(g => g.theme_id === temaSeleccionado.theme_id);
+                    if (existsGuidelineForTheme) {
+                        alert(`Ya existe una pauta asignada para el tema "${temaSeleccionado.theme_name}". Solo puede existir una pauta por tema.`);
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Error al verificar pautas existentes:', error);
+                }
             }
 
             const payload = {

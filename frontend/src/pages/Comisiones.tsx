@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
+import { getGuidelines, Guideline } from '../services/guidelineService';
 
 // Interfaces para los datos
 interface Tema {
@@ -135,9 +136,14 @@ export default function Comisiones() {
     
     // Estado para las evaluaciones
     const [evaluaciones, setEvaluaciones] = useState<Evaluacion[]>(MOCK_EVALUACIONES);
+    
+    // Estado para las pautas
+    const [pautas, setPautas] = useState<Guideline[]>([]);
+    const [loadingPautas, setLoadingPautas] = useState(false);
 
     // Estados para la creación de evaluación
     const [temaSeleccionado, setTemaSeleccionado] = useState<Tema | null>(null);
+    const [pautaSeleccionada, setPautaSeleccionada] = useState<Guideline | null>(null);
     const [nombrePauta, setNombrePauta] = useState('');
     const [comisiones, setComisiones] = useState<Comision[]>([]);
     const [showModal, setShowModal] = useState(false);
@@ -152,10 +158,35 @@ export default function Comisiones() {
         estudiantesSeleccionados: [] as number[],
     });
 
+    // Cargar pautas al montarse el componente
+    useEffect(() => {
+        loadPautas();
+    }, []);
+
+    const loadPautas = async () => {
+        try {
+            setLoadingPautas(true);
+            const data = await getGuidelines();
+            setPautas(data);
+        } catch (error) {
+            console.error('Error al cargar pautas:', error);
+        } finally {
+            setLoadingPautas(false);
+        }
+    };
+
     const handleTemaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const temaId = parseInt(e.target.value);
         const tema = MOCK_TEMAS.find(t => t.id === temaId) || null;
         setTemaSeleccionado(tema);
+        
+        // Buscar si existe pauta para este tema
+        if (tema) {
+            const pauta = pautas.find(p => p.theme_id === tema.id);
+            setPautaSeleccionada(pauta || null);
+        } else {
+            setPautaSeleccionada(null);
+        }
     };
 
     const handleToggleEstudiante = (estudianteId: number) => {
@@ -462,15 +493,15 @@ export default function Comisiones() {
 
                                 <div className="space-y-4">
                                     {/* Estado de la pauta */}
-                                    <div className={`flex items-center gap-3 p-4 rounded-lg ${temaSeleccionado.pautaAsignada ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
-                                        {temaSeleccionado.pautaAsignada ? (
+                                    <div className={`flex items-center gap-3 p-4 rounded-lg ${pautaSeleccionada ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                                        {pautaSeleccionada ? (
                                             <>
                                                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
                                                 <div>
                                                     <p className="font-semibold text-green-800">Pauta asignada</p>
-                                                    <p className="text-sm text-green-700">{temaSeleccionado.nombrePauta}</p>
+                                                    <p className="text-sm text-green-700">{pautaSeleccionada.name}</p>
                                                 </div>
                                             </>
                                         ) : (
@@ -486,25 +517,25 @@ export default function Comisiones() {
                                         )}
                                     </div>
 
-                                    <button
-                                        onClick={() => navigate(`/add-guidelines?themeId=${temaSeleccionado.id}`)}
-                                        className="inline-flex items-center px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm"
-                                    >
-                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                        </svg>
-                                        Crear Pauta
-                                    </button>
-
-                                    {temaSeleccionado.pautaAsignada && (
+                                    {pautaSeleccionada ? (
                                         <button
-                                            onClick={() => navigate(`/add-guidelines?themeId=${temaSeleccionado.id}`)}
-                                            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm ml-2"
+                                            onClick={() => navigate(`/add-guidelines?id=${pautaSeleccionada.guidline_id}&themeId=${temaSeleccionado?.id}`)}
+                                            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
                                         >
                                             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                             </svg>
                                             Editar Pauta
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => navigate(`/add-guidelines?themeId=${temaSeleccionado?.id}`)}
+                                            className="inline-flex items-center px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm"
+                                        >
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                            </svg>
+                                            Crear Pauta
                                         </button>
                                     )}
                                 </div>
