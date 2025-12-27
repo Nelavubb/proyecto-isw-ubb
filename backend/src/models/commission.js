@@ -52,7 +52,7 @@ export const Commission = new EntitySchema({
             joinColumn: {
                 name: 'theme_id',
             },
-            onDelete: 'RESTRICT',
+            onDelete: 'CASCADE',
         },
     },
 });
