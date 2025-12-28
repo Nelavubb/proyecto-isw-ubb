@@ -6,6 +6,7 @@ export type EvaluationDetail = {
   commission_id: number;
   guidline_id: number;
   observation?: string;
+  question_asked?: string;
   grade?: number;
   status: string;
   created_at?: string;
@@ -43,14 +44,42 @@ export const getEvaluationById = async (evaluationDetailId: number): Promise<Eva
 };
 
 /**
+ * Crea una nueva evaluación
+ * @param data Objeto con user_id, commission_id, guidline_id
+ * @returns Promesa que resuelve a la evaluación creada
+ */
+export const createEvaluation = async (
+  data: {
+    user_id: number;
+    commission_id: number;
+    guidline_id: number;
+    status?: string;
+  }
+): Promise<EvaluationDetail> => {
+  try {
+    const response = await apiClient.post<EvaluationDetail>('/evaluation-details', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating evaluation:', error);
+    throw error;
+  }
+};
+
+/**
  * Actualiza una evaluación con puntaje y observaciones
  * @param evaluationDetailId ID de la evaluación
- * @param data Objeto con grade y observation
+ * @param data Objeto con grade, observation y scores
  * @returns Promesa que resuelve a la evaluación actualizada
  */
 export const updateEvaluation = async (
   evaluationDetailId: number,
-  data: { grade?: number; observation?: string; status?: string }
+  data: { 
+    grade?: number; 
+    observation?: string; 
+    question_asked?: string;
+    status?: string;
+    scores?: Array<{ criterion_id: number; actual_score: number }>;
+  }
 ): Promise<EvaluationDetail> => {
   try {
     const response = await apiClient.put<EvaluationDetail>(
