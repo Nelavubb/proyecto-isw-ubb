@@ -9,6 +9,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const HOST = process.env.DB_HOST || 'localhost';
 
 // Middlewares
 const corsOptions = {
@@ -59,8 +60,8 @@ const startServer = async () => {
 
         // Iniciar servidor
         app.listen(PORT, () => {
-            console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-            console.log(`📚 Documentación API: http://localhost:${PORT}/api/health`);
+            console.log(`🚀 Servidor corriendo en http://${HOST}:${PORT}`);
+            console.log(`📚 Documentación API: http://${HOST}:${PORT}/api/health`);
             console.log(`🌍 Ambiente: ${process.env.NODE_ENV}`);
         });
     } catch (error) {

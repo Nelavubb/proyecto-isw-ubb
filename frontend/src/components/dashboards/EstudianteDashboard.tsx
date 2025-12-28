@@ -3,7 +3,7 @@ import Header from '../Header.tsx';
 import BottomNavigation from '../BottomNavigation';
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { getRecentEvaluations, RecentEvaluation } from '../../services/historyService';
+import { getRecentEvaluations, RecentEvaluation, getPendingCommissions, PendingCommission } from '../../services/historyService';
 
 interface EstudianteDashboardProps {
   user: User;
@@ -12,7 +12,9 @@ interface EstudianteDashboardProps {
 const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
   const navigate = useNavigate();
   const [recentEvaluations, setRecentEvaluations] = useState<RecentEvaluation[]>([]);
+  const [pendingCommissions, setPendingCommissions] = useState<PendingCommission[]>([]);
   const [loadingEvaluations, setLoadingEvaluations] = useState(true);
+  const [loadingPending, setLoadingPending] = useState(true);
 
   useEffect(() => {
     const fetchRecentEvaluations = async () => {
@@ -28,7 +30,21 @@ const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
       }
     };
 
+    const fetchPendingCommissions = async () => {
+      if (!user?.id) return;
+
+      try {
+        const pending = await getPendingCommissions(parseInt(user.id));
+        setPendingCommissions(pending);
+      } catch (error) {
+        console.error('Error fetching pending commissions:', error);
+      } finally {
+        setLoadingPending(false);
+      }
+    };
+
     fetchRecentEvaluations();
+    fetchPendingCommissions();
   }, [user]);
 
   const formatDate = (dateString: string) => {
@@ -64,57 +80,46 @@ const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
           <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Comisiones Próximas</h3>
 
-            <div className="space-y-4">
-              {/* Comisión 1 */}
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                <div className="flex items-center gap-4">
-                  <div className="bg-gray-100 p-3 rounded-lg">
-                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-800">Derecho Civil I</h4>
-                    <p className="text-sm text-gray-600">A301AC</p>
-                    <p className="text-sm text-gray-500">15 de Octubre, 10:00 AM</p>
-                  </div>
-                </div>
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+            {loadingPending ? (
+              <div className="space-y-4">
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-20 bg-gray-200 rounded-lg animate-pulse"></div>
+                ))}
               </div>
-
-              {/* Comisión 2 */}
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                <div className="flex items-center gap-4">
-                  <div className="bg-gray-100 p-3 rounded-lg">
-                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-800">Derecho Penal II</h4>
-                    <p className="text-sm text-gray-600">A102AD</p>
-                    <p className="text-sm text-gray-500">22 de Octubre, 09:00 AM</p>
-                  </div>
-                </div>
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+            ) : pendingCommissions.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No tienes comisiones próximas pendientes.</p>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                {pendingCommissions.map((commission, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-gray-100 p-3 rounded-lg">
+                        <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-800">{commission.commission_name}</h4>
+                        <p className="text-sm text-gray-600">{commission.place}</p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(commission.date).toLocaleDateString('es-CL', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}
+                          , {commission.time.slice(0, 5)} hrs
+                        </p>
+                      </div>
+                    </div>
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Prácticas Activas */}
-          {/*<div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-2">
-              Prácticas Activas
-            </h3>
-            <p className="text-gray-600 mb-4">
-              Prepárate para tus evaluaciones practicando con nuestras preguntas
-              simuladas.
-            </p>
-
-            <Link to="/practice/subjects" className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm"> Practicar ahora</Link>
-          </div>*/}
-
-          {/* Prácticas Activas */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Prácticas Activas</h3>
 
