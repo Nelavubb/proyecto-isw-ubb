@@ -545,7 +545,7 @@ export default function RealizacionEvaluacion() {
               <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-gray-600 mt-4 pt-4 border-t border-gray-200">
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wide">Comisión</p>
-                  <p className="font-bold text-gray-900">{commissionData.commission_name}</p>
+                  <p className="font-bold text-gray-900">{commissionData.commission_name?.split(' - ')[0] || 'Comisión'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wide">Tema</p>

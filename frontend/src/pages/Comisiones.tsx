@@ -215,6 +215,15 @@ export default function Comisiones() {
             const userId = (!isAdmin && user?.id) ? parseInt(user.id) : undefined;
             const data = await getCommissions(userId ? { userId } : undefined);
 
+            // Cargar asignaturas para obtener los nombres
+            const subjectsData = await getAllSubjects();
+
+            // Crear mapa de subject_id -> subject_name
+            const subjectMap = new Map<number, string>();
+            for (const subject of subjectsData) {
+                subjectMap.set(Number(subject.subject_id), subject.subject_name);
+            }
+
             // Agrupar comisiones por evaluation_group para crear "evaluaciones"
             const evaluacionesMap = new Map<string, Evaluacion>();
 
@@ -222,13 +231,17 @@ export default function Comisiones() {
                 const groupKey = commission.evaluation_group || `legacy_${commission.theme_id}`;
 
                 if (!evaluacionesMap.has(groupKey)) {
+                    // Usar el subject_id del theme que viene con la comisión
+                    const subjectId = commission.theme?.subject_id;
+                    const subjectName = subjectId ? subjectMap.get(Number(subjectId)) || 'Sin asignatura' : 'Sin asignatura';
+                    
                     evaluacionesMap.set(groupKey, {
                         id: commission.commission_id, // Usar el ID de la primera comisión como ID de evaluación
                         evaluationGroup: groupKey, // Guardar el grupo para agregar comisiones después
                         tema: {
                             id: commission.theme_id,
                             nombre: commission.theme?.theme_name || 'Tema sin nombre',
-                            asignatura: '', // Se puede obtener del backend si es necesario
+                            asignatura: subjectName,
                         },
                         nombrePauta: 'Pauta asociada',
                         comisiones: [],
@@ -876,7 +889,7 @@ export default function Comisiones() {
                                                     {getEstadoBadge(evaluacion.estado)}
                                                 </div>
                                                 <p className="text-sm text-gray-600 mb-1">{evaluacion.tema.asignatura}</p>
-                                                {evaluacion.profesorNombre && (
+                                                {isAdmin && evaluacion.profesorNombre && (
                                                     <p className="text-sm text-blue-600 mb-3 flex items-center gap-1">
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -959,7 +972,7 @@ export default function Comisiones() {
                         </div>
 
                         {/* Resumen de la evaluación */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-blue-100 rounded-lg">
@@ -983,19 +996,6 @@ export default function Comisiones() {
                                     <div>
                                         <p className="text-2xl font-bold text-gray-800">{evaluacionSeleccionada.totalEstudiantes}</p>
                                         <p className="text-sm text-gray-500">Estudiantes</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-purple-100 rounded-lg">
-                                        <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p className="text-2xl font-bold text-gray-800">{formatDateShort(evaluacionSeleccionada.fechaCreacion)}</p>
-                                        <p className="text-sm text-gray-500">Fecha de creación</p>
                                     </div>
                                 </div>
                             </div>
