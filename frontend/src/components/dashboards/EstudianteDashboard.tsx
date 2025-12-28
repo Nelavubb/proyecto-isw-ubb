@@ -22,9 +22,11 @@ const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
 
       try {
         const evaluations = await getRecentEvaluations(parseInt(user.id));
-        setRecentEvaluations(evaluations);
+        // Asegurarse de que evaluations sea un array
+        setRecentEvaluations(Array.isArray(evaluations) ? evaluations : []);
       } catch (error) {
         console.error('Error fetching recent evaluations:', error);
+        setRecentEvaluations([]);
       } finally {
         setLoadingEvaluations(false);
       }
@@ -35,9 +37,11 @@ const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
 
       try {
         const pending = await getPendingCommissions(parseInt(user.id));
-        setPendingCommissions(pending);
+        // Asegurarse de que pending sea un array
+        setPendingCommissions(Array.isArray(pending) ? pending : []);
       } catch (error) {
         console.error('Error fetching pending commissions:', error);
+        setPendingCommissions([]);
       } finally {
         setLoadingPending(false);
       }
