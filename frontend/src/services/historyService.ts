@@ -36,6 +36,13 @@ export interface RecentEvaluation {
     grade: number;
 }
 
+export interface PendingCommission {
+    commission_name: string;
+    place: string;
+    date: string;
+    time: string;
+}
+
 export const getSubjectHistory = async (userId: number): Promise<SubjectHistory[]> => {
     const response = await api.get(`/history/subjects/${userId}`);
     return response.data;
@@ -57,5 +64,10 @@ export const getEvaluationDetail = async (evaluationDetailId: number): Promise<E
 
 export const getRecentEvaluations = async (userId: number): Promise<RecentEvaluation[]> => {
     const response = await api.get(`/history/recent/${userId}`);
+    return response.data;
+};
+
+export const getPendingCommissions = async (userId: number): Promise<PendingCommission[]> => {
+    const response = await api.get(`/history/pending/${userId}`);
     return response.data;
 };
