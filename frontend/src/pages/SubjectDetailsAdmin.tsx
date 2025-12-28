@@ -1,19 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import BottomNavigation from '../components/BottomNavigation';
 import { Subject, updateSubject, getSubjectsByUser, getAllSubjects } from '../services/subjectService';
 import { getUsers, User } from '../services/userService';
 import { getAllTerms, Term } from '../services/termService';
-import { StudentSubject, getAllStudentSubjects, enrollStudent, enrollStudent as updateStudentSubject } from '../services/studentSubjectService';
-import { Users as UsersIcon, GraduationCap, Calendar, Save, ArrowLeft, Trash2, Plus } from 'lucide-react';
+import { StudentSubject, getAllStudentSubjects, enrollStudent, removeStudentFromSubject, updateStudentSubjectStatus } from '../services/studentSubjectService';
+import { Users as UsersIcon, GraduationCap, Calendar, Save, ArrowLeft, Trash2, Plus, CheckCircle, XCircle } from 'lucide-react';
 import api from '../api/axios.config';
+
+interface EnrolledStudent extends User {
+    status: 'active' | 'inactive';
+}
 
 const SubjectDetailsAdmin = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [subject, setSubject] = useState<Subject | null>(null);
     const [students, setStudents] = useState<User[]>([]);
-    const [enrolledStudents, setEnrolledStudents] = useState<User[]>([]);
+    const [enrolledStudents, setEnrolledStudents] = useState<EnrolledStudent[]>([]);
     const [availableStudents, setAvailableStudents] = useState<User[]>([]);
     const [teachers, setTeachers] = useState<User[]>([]);
     const [terms, setTerms] = useState<Term[]>([]);
@@ -42,10 +47,10 @@ const SubjectDetailsAdmin = () => {
         try {
             setLoading(true);
             const [allSubjects, allUsers, allTerms, allStudentSubjects] = await Promise.all([
-                getAllSubjects(), // or getSubjectById if available, filtering for now
+                getAllSubjects(),
                 getUsers(),
                 getAllTerms(),
-                getAllStudentSubjects() // This might be heavy, better to have getStudentsBySubject
+                getAllStudentSubjects()
             ]);
 
             const currentSubject = allSubjects.find(s => s.subject_id === parseInt(id!));
@@ -64,16 +69,17 @@ const SubjectDetailsAdmin = () => {
             setTeachers(allUsers.filter((u: User) => u.role === 'Profesor'));
             setTerms(allTerms);
 
-            // Filter enrolled students (active)
-            // Ideally backend should provide this relation
-            // We can fetch from /subjects/enrolled/:userId but that's inverse.
-            // Let's rely on student_subject table join or endpoints.
-            // For now, let's assume we can get it from the student_subject service or filter
-            // Temporarily fetching allStudentSubjects to filter (inefficient but works for now)
-            const subjectRelations = allStudentSubjects.filter((ss: StudentSubject) => ss.subject_id === parseInt(id!) && ss.status === 'active');
+            const subjectRelations = allStudentSubjects.filter((ss: StudentSubject) => ss.subject_id === parseInt(id!));
             const enrolledIds = subjectRelations.map((ss: StudentSubject) => ss.user_id);
 
-            setEnrolledStudents(studentUsers.filter(s => enrolledIds.includes(s.user_id)));
+            const enrolled = studentUsers
+                .filter(s => enrolledIds.includes(s.user_id))
+                .map(s => {
+                    const relation = subjectRelations.find(ss => ss.user_id === s.user_id);
+                    return { ...s, status: relation?.status || 'active' };
+                });
+
+            setEnrolledStudents(enrolled as EnrolledStudent[]);
             setAvailableStudents(studentUsers.filter(s => !enrolledIds.includes(s.user_id)));
 
         } catch (error) {
@@ -112,29 +118,36 @@ const SubjectDetailsAdmin = () => {
             setToast({ message: 'Estudiante inscrito correctamente', type: 'success' });
             setShowAddStudentModal(false);
             setSelectedStudentId(0);
-            fetchData(); // Refresh list
+            fetchData();
         } catch (error) {
             console.error(error);
             setToast({ message: 'Error al inscribir estudiante', type: 'error' });
         }
     };
 
-    // Need a remove/disable endpoint in service? 
-    // studentSubjectService has enrollStudent (POST). We might need DELETE or PUT to inactive.
-    // Assuming backend POST handles upsert or we need a new endpoint. 
-    // Re-using enroll with status 'inactive' might work if backend supports it or creates new record. 
-    // Based on backend implementation: check if exists -> error 400. 
-    // Need to update backend route to allow updating status or handle removal.
-    // For now, I'll implementing a "remove" that updates status to inactive if logical, 
-    // but the route I wrote (Step 563) checks existence and returns 400.
-    // I should probably update backend route to support toggle or create a delete route.
-    // I will assume for this step I just fetch and show, implementing Remove later or simple 'inactive' logic if I can update.
+    const handleRemoveStudent = async (studentId: number) => {
+        if (!confirm('¿Está seguro de que desea eliminar al estudiante de esta asignatura?')) return;
+        try {
+            await removeStudentFromSubject(parseInt(id!), studentId);
+            setToast({ message: 'Estudiante eliminado correctamente', type: 'success' });
+            fetchData();
+        } catch (error) {
+            console.error(error);
+            setToast({ message: 'Error al eliminar estudiante', type: 'error' });
+        }
+    };
 
-    // Actually, looking at route:
-    // const existing = await repo.findOne({ where: { user_id, subject_id } });
-    // if (existing) return res.status(400)...
-    // So I cannot update status via POST. I need a PUT or DELETE route.
-    // I will skip Remove implementation for this exact file creation step or add a placeholder.
+    const handleToggleStatus = async (studentId: number, currentStatus: 'active' | 'inactive') => {
+        const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+        try {
+            await updateStudentSubjectStatus(parseInt(id!), studentId, newStatus);
+            setToast({ message: `Estado actualizado a ${newStatus === 'active' ? 'Activo' : 'Inactivo'}`, type: 'success' });
+            fetchData();
+        } catch (error) {
+            console.error(error);
+            setToast({ message: 'Error al actualizar estado', type: 'error' });
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col font-sans">
@@ -164,8 +177,17 @@ const SubjectDetailsAdmin = () => {
                         <>
                             <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[#003366] mb-6 flex justify-between items-center">
                                 <div>
-                                    <h1 className="text-2xl font-bold text-[#003366] mb-1">
+                                    <h1 className="text-2xl font-bold text-[#003366] mb-1 flex items-center gap-3">
                                         {subject.subject_name}
+                                        {(() => {
+                                            const currentTerm = terms.find(t => t.is_current);
+                                            const isActive = currentTerm && subject.term_id === currentTerm.term_id;
+                                            return (
+                                                <span className={`text-sm px-3 py-1 rounded-full font-medium ${isActive ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
+                                                    {isActive ? 'En Curso' : 'Finalizado'}
+                                                </span>
+                                            );
+                                        })()}
                                     </h1>
                                     <p className="text-sm text-gray-500">
                                         Gestión de detalles y estudiantes para esta asignatura.
@@ -295,13 +317,14 @@ const SubjectDetailsAdmin = () => {
                                                     <tr>
                                                         <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">Estudiante</th>
                                                         <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">RUT</th>
+                                                        <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wide">Estado</th>
                                                         <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide">Acciones</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-100">
                                                     {enrolledStudents.length === 0 ? (
                                                         <tr>
-                                                            <td colSpan={3} className="px-6 py-12 text-center text-gray-500">
+                                                            <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
                                                                 <div className="flex flex-col items-center">
                                                                     <UsersIcon className="w-12 h-12 text-gray-300 mb-3" />
                                                                     <p className="font-medium">No hay estudiantes inscritos</p>
@@ -311,7 +334,7 @@ const SubjectDetailsAdmin = () => {
                                                         </tr>
                                                     ) : (
                                                         enrolledStudents.map(student => (
-                                                            <tr key={student.user_id} className="hover:bg-gray-50 transition-colors">
+                                                            <tr key={student.user_id} className={`hover:bg-gray-50 transition-colors ${student.status === 'inactive' ? 'bg-gray-50 opacity-75' : ''}`}>
                                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                                     <div className="flex items-center">
                                                                         <div className="h-8 w-8 rounded-full bg-blue-100 flex items-shrink-0 items-center justify-center text-xs font-bold text-[#003366]">
@@ -323,14 +346,36 @@ const SubjectDetailsAdmin = () => {
                                                                     </div>
                                                                 </td>
                                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.rut}</td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${student.status === 'active'
+                                                                        ? 'bg-green-100 text-green-800'
+                                                                        : 'bg-red-100 text-red-800'
+                                                                        }`}>
+                                                                        {student.status === 'active' ? 'Activo' : 'Inactivo'}
+                                                                    </span>
+                                                                </td>
                                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                                                    <button
-                                                                        className="text-gray-400 hover:text-red-600 transition-colors p-1"
-                                                                        title="Dar de baja"
-                                                                        onClick={() => alert("Función de dar de baja pendiente de implementación en backend")}
-                                                                    >
-                                                                        <Trash2 className="w-4 h-4" />
-                                                                    </button>
+                                                                    <div className="flex justify-end gap-2">
+                                                                        <button
+                                                                            onClick={() => handleToggleStatus(student.user_id, student.status)}
+                                                                            className={`p-2 rounded-lg transition ${student.status === 'active'
+                                                                                ? 'text-yellow-600 hover:bg-yellow-100'
+                                                                                : 'text-green-600 hover:bg-green-100'
+                                                                                }`}
+                                                                            title={student.status === 'active' ? 'Desactivar' : 'Activar'}
+                                                                        >
+                                                                            {student.status === 'active' ? <XCircle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
+                                                                        </button>
+                                                                        <button
+                                                                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-lg transition"
+                                                                            title="Eliminar"
+                                                                            onClick={() => handleRemoveStudent(student.user_id)}
+                                                                        >
+                                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                            </svg>
+                                                                        </button>
+                                                                    </div>
                                                                 </td>
                                                             </tr>
                                                         ))
@@ -373,7 +418,7 @@ const SubjectDetailsAdmin = () => {
                                     >
                                         <option value={0}>Seleccione...</option>
                                         {availableStudents.map(s => (
-                                            <option key={s.id} value={s.id}>{s.user_name} - {s.rut}</option>
+                                            <option key={s.user_id} value={s.user_id}>{s.user_name} - {s.rut}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -398,6 +443,7 @@ const SubjectDetailsAdmin = () => {
                     )}
                 </div>
             </main>
+            <BottomNavigation />
         </div>
     );
 };

@@ -49,4 +49,67 @@ router.post('/', async (req, res) => {
     }
 });
 
+import { Subject } from '../models/subject.js';
+import { Student_Subject } from '../models/studentsubject.js';
+
+// PUT /api/terms/:id/current
+router.put('/:id/current', async (req, res) => {
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+        const { id } = req.params;
+        const targetTermId = parseInt(id);
+
+        // Repositories bound to the transaction
+        const termRepository = queryRunner.manager.getRepository(Term);
+        const subjectRepository = queryRunner.manager.getRepository(Subject);
+        const studentSubjectRepository = queryRunner.manager.getRepository(Student_Subject);
+
+        // 1. Find the term that is CURRENTLY active (before switch)
+        const currentActiveTerm = await termRepository.findOne({ where: { is_current: true } });
+
+        // If there is an active term and it's different from the new one
+        if (currentActiveTerm && currentActiveTerm.term_id !== targetTermId) {
+            // 2. Find all subjects for this old term
+            const oldSubjects = await subjectRepository.find({ where: { term_id: currentActiveTerm.term_id } });
+            const oldSubjectIds = oldSubjects.map(s => s.subject_id);
+
+            if (oldSubjectIds.length > 0) {
+                // 3. Deactivate students in these subjects
+                await studentSubjectRepository
+                    .createQueryBuilder()
+                    .update(Student_Subject)
+                    .set({ status: 'inactive' })
+                    .where("subject_id IN (:...ids)", { ids: oldSubjectIds })
+                    .execute();
+            }
+        }
+
+        // 4. Set all terms to not current
+        // We use a direct update on the table to ensure we reset everything
+        await queryRunner.manager
+            .createQueryBuilder()
+            .update(Term)
+            .set({ is_current: false })
+            .where("is_current = :active", { active: true }) // Optimization: only update active ones
+            .execute();
+
+        // 5. Set new term to current
+        await termRepository.update(targetTermId, { is_current: true });
+
+        await queryRunner.commitTransaction();
+
+        const updatedTerm = await termRepository.findOne({ where: { term_id: targetTermId } });
+        res.json(updatedTerm);
+    } catch (error) {
+        await queryRunner.rollbackTransaction();
+        console.error("Error setting current term:", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    } finally {
+        await queryRunner.release();
+    }
+});
+
 export default router;

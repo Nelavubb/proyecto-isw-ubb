@@ -16,3 +16,12 @@ export const enrollStudent = async (data: { user_id: number; subject_id: number;
     const response = await api.post('/student-subjects', data);
     return response.data;
 };
+
+export const removeStudentFromSubject = async (subjectId: number, userId: number): Promise<void> => {
+    await api.delete(`/student-subjects/${subjectId}/${userId}`);
+};
+
+export const updateStudentSubjectStatus = async (subjectId: number, userId: number, status: 'active' | 'inactive'): Promise<StudentSubject> => {
+    const response = await api.put(`/student-subjects/${subjectId}/${userId}`, { status });
+    return response.data;
+};

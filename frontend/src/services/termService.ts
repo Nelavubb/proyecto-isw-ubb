@@ -11,7 +11,13 @@ export const getAllTerms = async (): Promise<Term[]> => {
     return response.data;
 };
 
+
 export const createTerm = async (data: { code: string; is_current: boolean }): Promise<Term> => {
     const response = await api.post('/terms', data);
+    return response.data;
+};
+
+export const setCurrentTerm = async (termId: number): Promise<Term> => {
+    const response = await api.put(`/terms/${termId}/current`);
     return response.data;
 };
