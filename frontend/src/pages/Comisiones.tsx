@@ -1,3 +1,4 @@
+//#region IMPORTS
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
@@ -15,14 +16,17 @@ import {
     Commission as CommissionAPI,
     Estudiante as EstudianteAPI
 } from '../services/commissionService';
+import { getCommissionResults, CommissionResult } from '../services/evaluationService';
 import { useAuth } from '../hooks/useAuth';
+//#endregion
 
-// Interfaces para los datos
+//#region INTERFACES
 interface Tema {
     id: number;
     nombre: string;
     asignatura: string;
     subjectId?: number;
+    profesorId?: number; // ID del profesor asignado a la asignatura
     nombrePauta?: string;
     pautaAsignada?: boolean;
 }
@@ -57,14 +61,19 @@ interface Evaluacion {
     fechaCreacion: string;
     totalEstudiantes: number;
     profesorNombre?: string;
+    profesorId?: number; // ID del profesor dueño de la evaluación
 }
 
-// Los datos se cargan desde el backend
+//#endregion
 
 export default function Comisiones() {
+    //#region HOOKS Y ESTADOS
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { user } = useAuth();
+    
+    // Verificar si es administrador (a nivel de componente para uso en renderizado)
+    const isAdmin = user?.role?.toLowerCase() === 'administrador';
 
     // Leer parámetro step de la URL
     const step = searchParams.get('step');
@@ -113,6 +122,34 @@ export default function Comisiones() {
     // Estado para modo edición
     const [modoEdicion, setModoEdicion] = useState(false);
     const [comisionEditandoId, setComisionEditandoId] = useState<number | null>(null);
+
+    // Estado para ver resultados de comisiones evaluadas
+    const [resultadosExpandidos, setResultadosExpandidos] = useState<{ [key: number]: CommissionResult[] }>({});
+    const [loadingResultados, setLoadingResultados] = useState<{ [key: number]: boolean }>({});
+    const [comisionesExpandidas, setComisionesExpandidas] = useState<number[]>([]);
+
+    // Función para cargar y mostrar/ocultar resultados de una comisión
+    const toggleResultados = async (comisionId: number) => {
+        if (comisionesExpandidas.includes(comisionId)) {
+            // Si ya está expandida, colapsar
+            setComisionesExpandidas(prev => prev.filter(id => id !== comisionId));
+        } else {
+            // Expandir y cargar resultados si no están cargados
+            setComisionesExpandidas(prev => [...prev, comisionId]);
+            
+            if (!resultadosExpandidos[comisionId]) {
+                setLoadingResultados(prev => ({ ...prev, [comisionId]: true }));
+                try {
+                    const results = await getCommissionResults(comisionId);
+                    setResultadosExpandidos(prev => ({ ...prev, [comisionId]: results }));
+                } catch (error) {
+                    console.error('Error al cargar resultados:', error);
+                } finally {
+                    setLoadingResultados(prev => ({ ...prev, [comisionId]: false }));
+                }
+            }
+        }
+    };
 
     // Función para guardar datos y navegar a AddGuidelines
     const navigateToGuidelines = (url: string) => {
@@ -167,7 +204,9 @@ export default function Comisiones() {
         loadComisiones();
         // Los estudiantes se cargan cuando se selecciona un tema
     }, []);
+    //#endregion
 
+    //#region FUNCIONES DE CARGA DE DATOS (load*)
     const loadComisiones = async () => {
         try {
             setLoadingEvaluaciones(true);
@@ -176,6 +215,15 @@ export default function Comisiones() {
             const userId = (!isAdmin && user?.id) ? parseInt(user.id) : undefined;
             const data = await getCommissions(userId ? { userId } : undefined);
 
+            // Cargar asignaturas para obtener los nombres
+            const subjectsData = await getAllSubjects();
+
+            // Crear mapa de subject_id -> subject_name
+            const subjectMap = new Map<number, string>();
+            for (const subject of subjectsData) {
+                subjectMap.set(Number(subject.subject_id), subject.subject_name);
+            }
+
             // Agrupar comisiones por evaluation_group para crear "evaluaciones"
             const evaluacionesMap = new Map<string, Evaluacion>();
 
@@ -183,13 +231,17 @@ export default function Comisiones() {
                 const groupKey = commission.evaluation_group || `legacy_${commission.theme_id}`;
 
                 if (!evaluacionesMap.has(groupKey)) {
+                    // Usar el subject_id del theme que viene con la comisión
+                    const subjectId = commission.theme?.subject_id;
+                    const subjectName = subjectId ? subjectMap.get(Number(subjectId)) || 'Sin asignatura' : 'Sin asignatura';
+                    
                     evaluacionesMap.set(groupKey, {
                         id: commission.commission_id, // Usar el ID de la primera comisión como ID de evaluación
                         evaluationGroup: groupKey, // Guardar el grupo para agregar comisiones después
                         tema: {
                             id: commission.theme_id,
                             nombre: commission.theme?.theme_name || 'Tema sin nombre',
-                            asignatura: '', // Se puede obtener del backend si es necesario
+                            asignatura: subjectName,
                         },
                         nombrePauta: 'Pauta asociada',
                         comisiones: [],
@@ -197,6 +249,7 @@ export default function Comisiones() {
                         fechaCreacion: commission.date,
                         totalEstudiantes: 0,
                         profesorNombre: commission.profesor?.user_name || 'Sin profesor',
+                        profesorId: commission.profesor?.user_id || commission.user_id, // Guardar el ID del profesor
                     });
                 }
 
@@ -289,6 +342,7 @@ export default function Comisiones() {
                         nombre: theme.theme_name,
                         asignatura: asignatura?.subject_name || 'Sin asignatura',
                         subjectId: themeSubjectId,
+                        profesorId: asignatura?.user_id, // Guardar el ID del profesor de la asignatura
                     };
                 });
             
@@ -319,7 +373,9 @@ export default function Comisiones() {
             setLoadingEstudiantes(false);
         }
     };
+    //#endregion
 
+    //#region HANDLERS DE EVENTOS (handle*)
     const handleTemaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const temaId = parseInt(e.target.value);
         const tema = temas.find(t => t.id === temaId) || null;
@@ -395,17 +451,24 @@ export default function Comisiones() {
         if (!temaSeleccionado || comisiones.length === 0 || !user?.id) return;
 
         try {
-            const userId = parseInt(user.id);
+            const currentUserId = parseInt(user.id);
             const timestamp = Date.now();
+            
+            // Si es admin, usar el profesorId del tema (profesor asignado a la asignatura)
+            // Si es profesor, usar su propio ID
+            const ownerUserId = isAdmin && temaSeleccionado.profesorId 
+                ? temaSeleccionado.profesorId 
+                : currentUserId;
+            
             // Generar un identificador único para esta evaluación (grupo de comisiones)
-            const evaluationGroup = `eval_${userId}_${temaSeleccionado.id}_${timestamp}`;
+            const evaluationGroup = `eval_${ownerUserId}_${temaSeleccionado.id}_${timestamp}`;
 
             // Crear cada comisión en el backend
             for (let i = 0; i < comisiones.length; i++) {
                 const comision = comisiones[i];
                 const commissionData = {
                     commission_name: `Comisión ${i + 1} - ${temaSeleccionado.nombre} - ${timestamp}`,
-                    user_id: userId,
+                    user_id: ownerUserId,
                     theme_id: temaSeleccionado.id,
                     guideline_id: pautaSeleccionada?.guidline_id,
                     date: comision.fecha,
@@ -561,7 +624,13 @@ export default function Comisiones() {
             if (!evaluacionSeleccionada || !user?.id) return;
 
             try {
-                const userId = parseInt(user.id);
+                const currentUserId = parseInt(user.id);
+                
+                // Si es admin, usar el profesorId de la evaluación (profesor dueño)
+                // Si es profesor, usar su propio ID
+                const ownerUserId = isAdmin && evaluacionSeleccionada.profesorId 
+                    ? evaluacionSeleccionada.profesorId 
+                    : currentUserId;
 
                 if (modoEdicion && comisionEditandoId) {
                     // EDITAR comisión existente en BD
@@ -580,7 +649,7 @@ export default function Comisiones() {
                     
                     const commissionData = {
                         commission_name: `Comisión ${numComision} - ${evaluacionSeleccionada.tema.nombre} - ${Date.now()}`,
-                        user_id: userId,
+                        user_id: ownerUserId,
                         theme_id: evaluacionSeleccionada.tema.id,
                         date: nuevaComision.fecha,
                         time: nuevaComision.hora,
@@ -597,7 +666,7 @@ export default function Comisiones() {
                 await loadComisiones();
                 
                 // Actualizar la evaluación seleccionada con los nuevos datos
-                const updatedEvaluaciones = await getCommissions(userId ? { userId } : undefined);
+                const updatedEvaluaciones = await getCommissions();
                 const groupKey = evaluacionSeleccionada.evaluationGroup;
                 
                 const comisionesDeEvaluacion = updatedEvaluaciones.filter(
@@ -701,7 +770,9 @@ export default function Comisiones() {
             });
         }
     };
+    //#endregion
 
+    //#region FUNCIONES AUXILIARES Y FILTROS
     // Obtener estudiantes ya asignados según el contexto (excluye la comisión en edición)
     const getEstudiantesYaAsignados = () => {
         if (modalContext === 'detalle' && evaluacionSeleccionada) {
@@ -751,8 +822,9 @@ export default function Comisiones() {
         const fechas = evaluacion.comisiones.map(c => c.fecha).sort();
         return formatDateShort(fechas[0]);
     };
+    //#endregion
 
-    // ==================== VISTA DE LISTA ====================
+    //#region VISTA DE LISTA
     if (vistaActual === 'lista') {
         return (
             <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -817,7 +889,7 @@ export default function Comisiones() {
                                                     {getEstadoBadge(evaluacion.estado)}
                                                 </div>
                                                 <p className="text-sm text-gray-600 mb-1">{evaluacion.tema.asignatura}</p>
-                                                {evaluacion.profesorNombre && (
+                                                {isAdmin && evaluacion.profesorNombre && (
                                                     <p className="text-sm text-blue-600 mb-3 flex items-center gap-1">
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -865,8 +937,9 @@ export default function Comisiones() {
             </div>
         );
     }
+    //#endregion
 
-    // ==================== VISTA DE DETALLE ====================
+    //#region VISTA DE DETALLE
     if (vistaActual === 'detalle' && evaluacionSeleccionada) {
         return (
             <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -899,7 +972,7 @@ export default function Comisiones() {
                         </div>
 
                         {/* Resumen de la evaluación */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-blue-100 rounded-lg">
@@ -926,19 +999,6 @@ export default function Comisiones() {
                                     </div>
                                 </div>
                             </div>
-                            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-purple-100 rounded-lg">
-                                        <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p className="text-2xl font-bold text-gray-800">{formatDateShort(evaluacionSeleccionada.fechaCreacion)}</p>
-                                        <p className="text-sm text-gray-500">Fecha de creación</p>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         {/* Título de sección */}
@@ -957,7 +1017,7 @@ export default function Comisiones() {
 
                         {/* Lista de Comisiones */}
                         <div className="grid gap-4">
-                            {evaluacionSeleccionada.comisiones.map((comision) => (
+                            {evaluacionSeleccionada.comisiones.map((comision, index) => (
                                 <div
                                     key={comision.id}
                                     className="bg-white rounded-lg shadow-sm border border-gray-100 p-5 hover:shadow-md transition"
@@ -968,7 +1028,7 @@ export default function Comisiones() {
                                                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${comision.modalidad === 'presencial' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
                                                     {comision.modalidad === 'presencial' ? '📍 Presencial' : '💻 Online'}
                                                 </span>
-                                                <span className="text-sm text-gray-500">Comisión #{comision.id}</span>
+                                                <span className="text-sm text-gray-500">Comisión {index + 1}</span>
                                             </div>
 
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -1016,58 +1076,166 @@ export default function Comisiones() {
                                         <div className="flex flex-col gap-2 min-w-[160px]">
                                             {!comision.evaluada ? (
                                                 <>
-                                                    <button
-                                                        onClick={() => {
-                                                            // Buscar el primer estudiante con rol "Estudiante"
-                                                            const estudianteValido = comision.estudiantes.find(e => e.role?.toLowerCase() === 'estudiante');
-                                                            if (estudianteValido) {
-                                                                navigate(`/RealizarEvaluacion?commission_id=${comision.id}&theme_id=${evaluacionSeleccionada.tema.id}&user_id=${estudianteValido.id}`);
-                                                            } else if (comision.estudiantes.length > 0) {
-                                                                // Si no tiene rol específico, usar el primer estudiante
-                                                                navigate(`/RealizarEvaluacion?commission_id=${comision.id}&theme_id=${evaluacionSeleccionada.tema.id}&user_id=${comision.estudiantes[0].id}`);
-                                                            } else {
-                                                                alert('No hay estudiantes asignados a esta comisión');
-                                                            }
-                                                        }}
-                                                        className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
-                                                    >
-                                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                        </svg>
-                                                        Realizar Evaluación
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleEditarComisionDetalle(comision)}
-                                                        className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium"
-                                                    >
-                                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                        </svg>
-                                                        Editar Comisión
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleEliminarComisionDetalle(comision.id)}
-                                                        className="inline-flex items-center justify-center px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition text-sm font-medium"
-                                                    >
-                                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                        Eliminar Comisión
-                                                    </button>
+                                                    {/* Solo profesores pueden realizar evaluaciones */}
+                                                    {!isAdmin && (
+                                                        <button
+                                                            onClick={() => {
+                                                                // Buscar el primer estudiante con rol "Estudiante"
+                                                                const estudianteValido = comision.estudiantes.find(e => e.role?.toLowerCase() === 'estudiante');
+                                                                if (estudianteValido) {
+                                                                    navigate(`/RealizarEvaluacion?commission_id=${comision.id}&theme_id=${evaluacionSeleccionada.tema.id}&user_id=${estudianteValido.id}`);
+                                                                } else if (comision.estudiantes.length > 0) {
+                                                                    // Si no tiene rol específico, usar el primer estudiante
+                                                                    navigate(`/RealizarEvaluacion?commission_id=${comision.id}&theme_id=${evaluacionSeleccionada.tema.id}&user_id=${comision.estudiantes[0].id}`);
+                                                                } else {
+                                                                    alert('No hay estudiantes asignados a esta comisión');
+                                                                }
+                                                            }}
+                                                            className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
+                                                        >
+                                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            </svg>
+                                                            Realizar Evaluación
+                                                        </button>
+                                                    )}
+                                                    {/* Admin solo puede editar si el estado es pendiente, profesor siempre puede editar */}
+                                                    {(!isAdmin || evaluacionSeleccionada.estado === 'pendiente') && (
+                                                        <button
+                                                            onClick={() => handleEditarComisionDetalle(comision)}
+                                                            className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium"
+                                                        >
+                                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                            </svg>
+                                                            Editar Comisión
+                                                        </button>
+                                                    )}
+                                                    {/* Admin solo puede eliminar si el estado es pendiente, profesor siempre puede eliminar */}
+                                                    {(!isAdmin || evaluacionSeleccionada.estado === 'pendiente') && (
+                                                        <button
+                                                            onClick={() => handleEliminarComisionDetalle(comision.id)}
+                                                            className="inline-flex items-center justify-center px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition text-sm font-medium"
+                                                        >
+                                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                            Eliminar Comisión
+                                                        </button>
+                                                    )}
                                                 </>
                                             ) : (
                                                 <button
+                                                    onClick={() => toggleResultados(comision.id)}
                                                     className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
                                                 >
-                                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <svg className={`w-4 h-4 mr-2 transition-transform ${comisionesExpandidas.includes(comision.id) ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                     </svg>
-                                                    Ver Resultados
+                                                    {comisionesExpandidas.includes(comision.id) ? 'Ocultar Resultados' : 'Ver Resultados'}
                                                 </button>
                                             )}
                                         </div>
                                     </div>
+                                    
+                                    {/* Panel de Resultados Expandible */}
+                                    {comision.evaluada && comisionesExpandidas.includes(comision.id) && (
+                                        <div className="mt-4 border-t border-gray-200 pt-4">
+                                            <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                                Resultados de Evaluación
+                                            </h4>
+                                            
+                                            {loadingResultados[comision.id] ? (
+                                                <div className="flex items-center justify-center py-8">
+                                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                                    <span className="ml-3 text-gray-500">Cargando resultados...</span>
+                                                </div>
+                                            ) : resultadosExpandidos[comision.id]?.length > 0 ? (
+                                                <div className="space-y-4">
+                                                    {resultadosExpandidos[comision.id].map((resultado) => (
+                                                        <div 
+                                                            key={resultado.evaluation_detail_id}
+                                                            className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                                                        >
+                                                            {/* Encabezado del estudiante */}
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                                                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                                        </svg>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="font-semibold text-gray-900">{resultado.student?.user_name || 'Estudiante'}</p>
+                                                                        <p className="text-xs text-gray-500">{resultado.student?.rut || 'Sin RUT'}</p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <p className="text-xs text-gray-500 uppercase tracking-wide">Nota Final</p>
+                                                                    <p className={`text-2xl font-bold ${(resultado.grade ?? 0) >= 4 ? 'text-green-600' : 'text-red-600'}`}>
+                                                                        {resultado.grade?.toFixed(1) ?? 'N/A'}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            {/* Puntajes por criterio */}
+                                                            {resultado.scores && resultado.scores.length > 0 && (
+                                                                <div className="mb-3">
+                                                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Puntajes por Criterio</p>
+                                                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                                                        {resultado.scores.map((score) => (
+                                                                            <div 
+                                                                                key={score.criterion_id}
+                                                                                className="bg-white rounded p-2 border border-gray-100"
+                                                                            >
+                                                                                <p className="text-xs text-gray-600 truncate" title={score.criterion_name}>
+                                                                                    {score.criterion_name}
+                                                                                </p>
+                                                                                <p className="font-semibold text-gray-900">
+                                                                                    {score.actual_score} / {score.max_score}
+                                                                                </p>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            
+                                                            {/* Pregunta realizada */}
+                                                            {resultado.question_asked && (
+                                                                <div className="mb-3">
+                                                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Pregunta Realizada</p>
+                                                                    <p className="text-sm text-gray-700 bg-white p-2 rounded border border-gray-100">
+                                                                        {resultado.question_asked}
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                            
+                                                            {/* Retroalimentación */}
+                                                            {resultado.observation && (
+                                                                <div>
+                                                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Retroalimentación</p>
+                                                                    <p className="text-sm text-gray-700 bg-white p-2 rounded border border-gray-100 italic">
+                                                                        "{resultado.observation}"
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="text-center py-6 text-gray-500">
+                                                    <svg className="w-12 h-12 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                    </svg>
+                                                    <p>No hay resultados disponibles</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -1287,8 +1455,9 @@ export default function Comisiones() {
             </div>
         );
     }
+    //#endregion
 
-    // ==================== VISTA DE CREACIÓN ====================
+    //#region VISTA DE CREACIÓN
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col">
             <Header variant="default" title="Facultad de Derecho" />
@@ -1350,11 +1519,11 @@ export default function Comisiones() {
                     {/* Paneles de configuración (solo si hay tema seleccionado) */}
                     {temaSeleccionado && (
                         <>
-                            {/* Panel A: Configuración de Pauta */}
+                            {/* Panel 2: Configuración de Pauta */}
                             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
                                 <div className="flex items-center gap-3 mb-4">
-                                    <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#003366] text-white font-bold text-sm">A</span>
-                                    <h2 className="text-lg font-bold text-[#003366]">Configuración de Pauta (Guideline)</h2>
+                                    <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#003366] text-white font-bold text-sm">2</span>
+                                    <h2 className="text-lg font-bold text-[#003366]">Configuración de Pauta</h2>
                                 </div>
 
                                 <div className="space-y-4">
@@ -1407,12 +1576,12 @@ export default function Comisiones() {
                                 </div>
                             </div>
 
-                            {/* Panel B: Gestión de Comisiones */}
+                            {/* Panel 3: Gestión de Comisiones */}
                             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
                                 <div className="flex items-center justify-between mb-6">
                                     <div className="flex items-center gap-3">
-                                        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#003366] text-white font-bold text-sm">B</span>
-                                        <h2 className="text-lg font-bold text-[#003366]">Gestión de Comisiones (Logística)</h2>
+                                        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#003366] text-white font-bold text-sm">3</span>
+                                        <h2 className="text-lg font-bold text-[#003366]">Gestión de Comisiones</h2>
                                     </div>
                                     <button
                                         onClick={() => { setModalContext('crear'); setShowModal(true); }}
@@ -1436,13 +1605,14 @@ export default function Comisiones() {
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {comisiones.map((comision) => (
+                                        {comisiones.map((comision, index) => (
                                             <div
                                                 key={comision.id}
                                                 className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition bg-white"
                                             >
                                                 <div className="flex items-start justify-between mb-3">
                                                     <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-semibold text-gray-700">Comisión {index + 1}</span>
                                                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${comision.modalidad === 'presencial' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
                                                             {comision.modalidad === 'presencial' ? '📍 Presencial' : '💻 Online'}
                                                         </span>
@@ -1499,9 +1669,6 @@ export default function Comisiones() {
                                                             </svg>
                                                             <span className="text-sm text-gray-600">{comision.estudiantes.length} estudiantes</span>
                                                         </div>
-                                                        <button className="text-xs text-[#003366] hover:underline font-medium">
-                                                            Ver lista
-                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1516,9 +1683,6 @@ export default function Comisiones() {
                                     <div className="text-center sm:text-left">
                                         <p className="text-sm text-gray-600">
                                             <span className="font-semibold">{comisiones.length}</span> comisión(es) configurada(s) para este tema
-                                        </p>
-                                        <p className="text-xs text-gray-400 mt-1">
-                                            Los estudiantes recibirán una notificación por correo electrónico
                                         </p>
                                     </div>
                                     <div className="flex gap-3">
@@ -1734,4 +1898,5 @@ export default function Comisiones() {
             <BottomNavigation />
         </div>
     );
+    //#endregion
 }

@@ -27,6 +27,7 @@ export interface Commission {
     theme?: {
         theme_id: number;
         theme_name: string;
+        subject_id?: number;
     };
     profesor?: {
         user_id: number;

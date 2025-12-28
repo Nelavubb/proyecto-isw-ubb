@@ -486,6 +486,23 @@ export default function RealizacionEvaluacion() {
       const totalScore = criteria.reduce((sum, c) => sum + (c.score || 0), 0);
       const calculatedGrade = calculateFinalGrade(totalScore, maxTotal);
 
+      // Preparar los scores para enviar
+      const scores = criteria
+        .filter(c => c.score !== null)
+        .map(c => ({
+          criterion_id: c.criterion_id,
+          actual_score: c.score as number
+        }));
+
+      // Primero guardar todos los datos
+      await updateEvaluation(evaluacionSeleccionada.evaluation_detail_id, {
+        grade: parseFloat(calculatedGrade.toFixed(2)),
+        observation: feedback || undefined,
+        question_asked: currentQuestion?.text || undefined,
+        scores: scores.length > 0 ? scores : undefined
+      });
+
+      // Luego marcar como completada
       await completeEvaluation(evaluacionSeleccionada.evaluation_detail_id);
 
       setCompleted(true);
@@ -528,7 +545,7 @@ export default function RealizacionEvaluacion() {
               <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-gray-600 mt-4 pt-4 border-t border-gray-200">
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wide">Comisión</p>
-                  <p className="font-bold text-gray-900">{commissionData.commission_name}</p>
+                  <p className="font-bold text-gray-900">{commissionData.commission_name?.split(' - ')[0] || 'Comisión'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wide">Tema</p>

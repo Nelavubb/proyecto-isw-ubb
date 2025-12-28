@@ -78,6 +78,7 @@ router.get('/evaluations/:userId/:subjectId/:code', async (req, res) => {
             .andWhere("t.subject_id = :subjectId", { subjectId })
             .andWhere("te.code = :code", { code })
             .andWhere("ed.grade IS NOT NULL")
+            .andWhere("ed.status = :status", { status: 'completed' })
             .orderBy("c.date", "DESC")
             .getRawMany();
 
@@ -149,6 +150,44 @@ router.get('/detail/:evaluationDetailId', async (req, res) => {
     }
 });
 
+// GET /api/history/pending/:userId
+// Obtiene las próximas 2 comisiones pendientes
+router.get('/pending/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const evalRepo = AppDataSource.getRepository(Evaluation_detail);
+
+        const pendingEvaluations = await evalRepo
+            .createQueryBuilder("ed")
+            .innerJoin("commission", "c", "c.commission_id = ed.commission_id")
+            .select([
+                "c.commission_name",
+                "c.location",
+                "c.date",
+                "c.time"
+            ])
+            .where("ed.user_id = :userId", { userId })
+            .andWhere("ed.status = :status", { status: 'pending' })
+            .orderBy("c.date", "ASC")
+            .limit(2)
+            .getRawMany();
+
+        const mappedPending = pendingEvaluations.map(e => ({
+            commission_name: e.c_commission_name,
+            place: e.c_location,
+            date: e.c_date,
+            time: e.c_time
+        }));
+
+        res.json(mappedPending);
+    } catch (error) {
+        console.error("Error al obtener comisiones pendientes:", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+});
+
+
 // GET /api/history/recent/:userId
 // Obtiene las últimas 2 evaluaciones de un estudiante para mostrar en el dashboard
 router.get('/recent/:userId', async (req, res) => {
@@ -170,6 +209,7 @@ router.get('/recent/:userId', async (req, res) => {
             ])
             .where("ed.user_id = :userId", { userId })
             .andWhere("ed.grade IS NOT NULL")
+            .andWhere("ed.status = :status", { status: 'completed' })
             .orderBy("c.date", "DESC")
             .limit(2)
             .getRawMany();
