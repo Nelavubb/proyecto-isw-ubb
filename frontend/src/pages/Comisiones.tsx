@@ -589,9 +589,10 @@ export default function Comisiones() {
                 });
                 setSearchEstudiante('');
                 alert(modoEdicion ? 'Comisión actualizada exitosamente' : 'Comisión agregada exitosamente');
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error al guardar comisión:', error);
-                alert('Error al guardar la comisión. Por favor, intente de nuevo.');
+                const errorMessage = error?.response?.data?.details || error?.response?.data?.error || error?.message || 'Error desconocido';
+                alert(`Error al guardar la comisión: ${errorMessage}`);
             }
         } else {
             // Contexto: creación de nueva evaluación (comisiones locales)

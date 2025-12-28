@@ -20,7 +20,7 @@ export const Evaluation_detail = new EntitySchema({
         },
         guidline_id: {
             type: 'int',
-            nullable: false,
+            nullable: true,
         },
         observation: {
             type: 'text',
