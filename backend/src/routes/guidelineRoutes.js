@@ -16,7 +16,21 @@ router.get('/', async (req, res) => {
         const guidelines = await guidelineRepository().find({
             relations: ['theme']
         });
-        res.json(guidelines);
+        
+        // Cargar criterios para cada pauta
+        const guidelinesWithCriteria = await Promise.all(
+            guidelines.map(async (guideline) => {
+                const criteria = await criterionRepository().find({
+                    where: { guidline_id: guideline.guidline_id }
+                });
+                return {
+                    ...guideline,
+                    description: criteria
+                };
+            })
+        );
+        
+        res.json(guidelinesWithCriteria);
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener pautas', details: error.message });
     }

@@ -17,14 +17,10 @@ export const Student_Subject = new EntitySchema({
             type: 'int',
             nullable: false,
         },
-        semester: {
-            type: 'varchar',
-            length: 50,
-            nullable: false,
-        },
         status: {
-            type: 'varchar',
-            length: 50,
+            type: 'enum',
+            enum: ['active', 'inactive'],
+            default: 'active',
             nullable: false,
         },
     },
@@ -47,4 +43,3 @@ export const Student_Subject = new EntitySchema({
         },
     },
 });
-
