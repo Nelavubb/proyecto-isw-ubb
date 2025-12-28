@@ -58,7 +58,7 @@ interface Evaluacion {
     totalEstudiantes: number;
 }
 
-// Los datos ahora se cargan desde el backend
+// Los datos se cargan desde el backend
 
 export default function Comisiones() {
     const navigate = useNavigate();
@@ -619,7 +619,7 @@ export default function Comisiones() {
                             })) || [],
                             evaluada: false,
                         })),
-                        estado: 'programada',
+                        estado: 'pendiente',
                         fechaCreacion: primeraComision.date,
                         totalEstudiantes: comisionesDeEvaluacion.reduce(
                             (sum, c) => sum + (c.estudiantes?.length || 0), 0
