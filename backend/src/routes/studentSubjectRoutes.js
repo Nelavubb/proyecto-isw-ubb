@@ -43,5 +43,61 @@ router.post('/', async (req, res) => {
         res.status(500).json({ message: "Error interno del servidor" });
     }
 });
+// DELETE /api/student-subjects/:subjectId/:userId
+router.delete('/:subjectId/:userId', async (req, res) => {
+    try {
+        const { subjectId, userId } = req.params;
+        const repo = AppDataSource.getRepository(Student_Subject);
+
+        const relation = await repo.findOne({
+            where: {
+                subject_id: parseInt(subjectId),
+                user_id: parseInt(userId)
+            }
+        });
+
+        if (!relation) {
+            return res.status(404).json({ message: "Relación no encontrada" });
+        }
+
+        await repo.remove(relation);
+        res.status(204).send();
+    } catch (error) {
+        console.error("Error deleting student subject:", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+});
+
+// PUT /api/student-subjects/:subjectId/:userId
+router.put('/:subjectId/:userId', async (req, res) => {
+    try {
+        const { subjectId, userId } = req.params;
+        const { status } = req.body;
+
+        if (!['active', 'inactive'].includes(status)) {
+            return res.status(400).json({ message: "Estado inválido" });
+        }
+
+        const repo = AppDataSource.getRepository(Student_Subject);
+        const relation = await repo.findOne({
+            where: {
+                subject_id: parseInt(subjectId),
+                user_id: parseInt(userId)
+            }
+        });
+
+        if (!relation) {
+            return res.status(404).json({ message: "Relación no encontrada" });
+        }
+
+        relation.status = status;
+        await repo.save(relation);
+
+        res.json(relation);
+    } catch (error) {
+        console.error("Error updating student subject:", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+});
 
 export default router;

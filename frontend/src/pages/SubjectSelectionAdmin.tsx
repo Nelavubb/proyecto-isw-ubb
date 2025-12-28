@@ -4,7 +4,8 @@ import BottomNavigation from '../components/BottomNavigation';
 import { useNavigate } from 'react-router-dom';
 import { getAllSubjects, createSubject, updateSubject, deleteSubject, Subject } from '../services/subjectService';
 import { getUsers, User } from '../services/userService';
-import { Plus, Edit2, Trash2, GraduationCap } from "lucide-react";
+import { getAllTerms, Term, setCurrentTerm } from '../services/termService';
+import { Plus, Edit2, Trash2, GraduationCap, AlertTriangle } from "lucide-react";
 import { useAuth } from '../hooks/useAuth';
 
 export default function SubjectSelectionAdmin() {
@@ -14,12 +15,18 @@ export default function SubjectSelectionAdmin() {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [teachers, setTeachers] = useState<User[]>([]);
+    const [terms, setTerms] = useState<Term[]>([]);
 
     const [newSubjectName, setNewSubjectName] = useState('');
     const [selectedTeacherId, setSelectedTeacherId] = useState<number | ''>('');
+    const [selectedTermId, setSelectedTermId] = useState<number | ''>('');
     const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
     const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [errors, setErrors] = useState<string[]>([]);
+
+    // Term Switching State
+    const [showTermWarning, setShowTermWarning] = useState(false);
+    const [pendingTermId, setPendingTermId] = useState<number | null>(null);
 
     useEffect(() => {
         fetchData();
@@ -34,12 +41,14 @@ export default function SubjectSelectionAdmin() {
 
         try {
             setLoading(true);
-            const [subjectsData, usersData] = await Promise.all([
+            const [subjectsData, usersData, termsData] = await Promise.all([
                 getAllSubjects(),
-                getUsers()
+                getUsers(),
+                getAllTerms()
             ]);
             setSubjects(subjectsData);
             setTeachers(usersData.filter(u => u.role === 'Profesor'));
+            setTerms(termsData);
         } catch (error) {
             console.error("Error fetching data:", error);
         } finally {
@@ -77,6 +86,7 @@ export default function SubjectSelectionAdmin() {
         setShowModal(false);
         setNewSubjectName('');
         setSelectedTeacherId('');
+        setSelectedTermId('');
         setEditingSubject(null);
         setErrors([]);
         setToast(null);
@@ -107,6 +117,10 @@ export default function SubjectSelectionAdmin() {
             }
         }
 
+        if (!selectedTermId) {
+            newErrors.push('Debe seleccionar un periodo académico');
+        }
+
         if (newErrors.length > 0) {
             setErrors(newErrors);
             return;
@@ -117,14 +131,14 @@ export default function SubjectSelectionAdmin() {
                 await updateSubject(editingSubject.subject_id, {
                     subject_name: newSubjectName,
                     user_id: Number(selectedTeacherId),
-                    term_id: 1 // Default or selected
+                    term_id: Number(selectedTermId)
                 });
                 setToast({ type: 'success', text: 'Asignatura actualizada exitosamente' });
             } else {
                 await createSubject({
                     subject_name: newSubjectName,
                     user_id: Number(selectedTeacherId),
-                    term_id: 1 // Default or selected
+                    term_id: Number(selectedTermId)
                 });
                 setToast({ type: 'success', text: 'Asignatura creada exitosamente' });
             }
@@ -141,6 +155,38 @@ export default function SubjectSelectionAdmin() {
         }
     };
 
+    const handleTermChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const termId = Number(e.target.value);
+        const currentTerm = terms.find(t => t.is_current);
+
+        // If selecting the same term, do nothing
+        if (currentTerm && currentTerm.term_id === termId) return;
+
+        setPendingTermId(termId);
+        setShowTermWarning(true);
+    };
+
+    const confirmTermChange = async () => {
+        if (!pendingTermId) return;
+
+        try {
+            setLoading(true);
+            await setCurrentTerm(pendingTermId);
+            setToast({ type: 'success', text: 'Periodo actual actualizado. Asignaturas anteriores finalizadas.' });
+
+            // Refresh data to reflect status changes
+            await fetchData();
+        } catch (error) {
+            console.error("Error setting current term:", error);
+            setToast({ type: 'error', text: 'Error al cambiar el periodo actual' });
+        } finally {
+            setLoading(false);
+            setShowTermWarning(false);
+            setPendingTermId(null);
+            setTimeout(() => setToast(null), 3000);
+        }
+    };
+
     const getIcon = () => {
         return <GraduationCap className="w-6 h-6 text-[#003366]" />;
     };
@@ -152,23 +198,37 @@ export default function SubjectSelectionAdmin() {
             <main className="flex-1 z-10 w-full px-4 sm:px-6 lg:px-8 pt-28 pb-24">
                 <div className="max-w-6xl mx-auto space-y-6">
 
-                    <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[#003366] flex justify-between items-center">
+                    <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[#003366] flex flex-col md:flex-row justify-between items-center gap-4">
                         <div>
                             <h1 className="text-2xl font-bold text-[#003366] mb-1">Gestión de Asignaturas (Admin)</h1>
                             <p className="text-sm text-gray-500">
                                 Administre todas las asignaturas y sus profesores responsables.
                             </p>
                         </div>
-                        <button
-                            onClick={() => {
-                                setErrors([]);
-                                setShowModal(true);
-                            }}
-                            className="bg-[#003366] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#004488] transition-colors shadow-sm"
-                        >
-                            <Plus className="w-5 h-5" />
-                            <span>Agregar Asignatura</span>
-                        </button>
+                        <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+                            <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                                <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Periodo Actual:</span>
+                                <select
+                                    className="bg-transparent text-sm font-bold text-[#003366] focus:outline-none cursor-pointer"
+                                    value={terms.find(t => t.is_current)?.term_id || ''}
+                                    onChange={handleTermChange}
+                                >
+                                    {terms.map(t => (
+                                        <option key={t.term_id} value={t.term_id}>{t.code}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setErrors([]);
+                                    setShowModal(true);
+                                }}
+                                className="bg-[#003366] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#004488] transition-colors shadow-sm w-full sm:w-auto justify-center"
+                            >
+                                <Plus className="w-5 h-5" />
+                                <span>Agregar Asignatura</span>
+                            </button>
+                        </div>
                     </div>
 
                     {loading ? (
@@ -182,7 +242,8 @@ export default function SubjectSelectionAdmin() {
                             {subjects.map((subject) => (
                                 <div
                                     key={subject.subject_id}
-                                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4"
+                                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow"
+                                    onClick={() => handleSelectSubject(subject.subject_id)}
                                 >
                                     <div className="p-3 bg-blue-50 rounded-lg">
                                         {getIcon()}
@@ -195,6 +256,11 @@ export default function SubjectSelectionAdmin() {
                                         {(subject as any).user && (
                                             <p className="text-xs text-gray-500 mt-1">
                                                 Prof. {(subject as any).user.user_name}
+                                            </p>
+                                        )}
+                                        {(subject as any).term_id && (
+                                            <p className="text-xs text-gray-400 mt-0.5">
+                                                Periodo: {terms.find(t => t.term_id === subject.term_id)?.code || subject.term_id}
                                             </p>
                                         )}
                                     </div>
@@ -228,6 +294,7 @@ export default function SubjectSelectionAdmin() {
                 </div>
             </main>
 
+            {/* Existing Subject Modal */}
             {showModal && (
                 <div className="fixed inset-0 flex items-center justify-center z-50">
                     <div
@@ -312,6 +379,24 @@ export default function SubjectSelectionAdmin() {
                                     ))}
                                 </select>
                             </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Periodo Académico
+                                </label>
+                                <select
+                                    value={selectedTermId}
+                                    onChange={(e) => setSelectedTermId(Number(e.target.value))}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003366] focus:border-transparent outline-none transition-all"
+                                >
+                                    <option value="">Seleccione un periodo...</option>
+                                    {terms.map((term) => (
+                                        <option key={term.term_id} value={term.term_id}>
+                                            {term.code} {term.is_current ? '(Actual)' : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
 
                         <div className="mt-8 flex gap-3">
@@ -326,6 +411,56 @@ export default function SubjectSelectionAdmin() {
                                 className="flex-1 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition-colors font-medium"
                             >
                                 {editingSubject ? 'Actualizar Asignatura' : 'Guardar Asignatura'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Term Change Warning Modal */}
+            {showTermWarning && (
+                <div className="fixed inset-0 flex items-center justify-center z-[70]">
+                    <div
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                        onClick={() => {
+                            setShowTermWarning(false);
+                            setPendingTermId(null);
+                        }}
+                    />
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 z-10 relative animate-in fade-in zoom-in-95 duration-200 border-t-4 border-yellow-500">
+                        <div className="flex items-start gap-4 mb-4">
+                            <div className="p-3 bg-yellow-100 rounded-full flex-shrink-0">
+                                <AlertTriangle className="w-6 h-6 text-yellow-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                    ¿Cambiar Periodo Actual?
+                                </h3>
+                                <p className="text-gray-600 text-sm leading-relaxed">
+                                    Al cambiar el periodo actual, todas las asignaturas del periodo anterior finalizarán y los estudiantes pasarán a estado
+                                    <span className="font-bold text-red-600"> Inactivo</span> en esas asignaturas.
+                                </p>
+                                <p className="text-gray-600 text-sm leading-relaxed mt-2 font-medium">
+                                    ¿Está seguro de que desea continuar?
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 justify-end mt-6">
+                            <button
+                                onClick={() => {
+                                    setShowTermWarning(false);
+                                    setPendingTermId(null);
+                                }}
+                                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmTermChange}
+                                className="px-4 py-2 text-white bg-yellow-600 hover:bg-yellow-700 rounded-lg font-medium transition-colors shadow-sm"
+                            >
+                                Sí, Cambiar Periodo.
                             </button>
                         </div>
                     </div>
