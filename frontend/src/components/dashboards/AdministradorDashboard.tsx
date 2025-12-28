@@ -164,7 +164,6 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
         {/* Welcome Section */}
         <div className="mb-6 text-white">
           <h2 className="text-3xl font-bold">Bienvenido(a), {user.name}</h2>
-          <p className="mt-1 text-white/80">Rol: {user.role}</p>
         </div>
 
         {/* Estadísticas Generales */}

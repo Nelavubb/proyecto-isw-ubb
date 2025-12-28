@@ -74,7 +74,6 @@ const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
         {/* Transparent background, text sits on the blue h-60 block */}
         <div className="mb-8 text-white">
           <h2 className="text-3xl font-bold">Bienvenido(a), {user.name}</h2>
-          <p className="mt-1 text-white/80 text-lg">Rol: {user.role}</p>
         </div>
 
         {/* Dashboard Cards Container */}
