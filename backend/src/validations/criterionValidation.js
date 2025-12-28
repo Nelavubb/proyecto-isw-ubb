@@ -5,11 +5,18 @@ export const createCriterionValidation = Joi.object({
         .min(3)
         .max(500)
         .required()
-        .pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+(\s[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+)+$/)
         .custom((value, helpers) => {
             // Verificar que no sea solo espacios
             if (value.trim().length === 0) {
                 return helpers.error('custom.onlySpaces');
+            }
+            // Verificar que tenga al menos un espacio (múltiples palabras)
+            if (!/\s/.test(value.trim())) {
+                return helpers.error('custom.noSpace');
+            }
+            // Verificar que solo contenga letras, números, espacios y tildes
+            if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s]+$/.test(value)) {
+                return helpers.error('custom.invalidChars');
             }
             // Verificar que no sea solo una letra repetida
             const cleanText = value.replace(/\s/g, '').toLowerCase();
@@ -23,8 +30,9 @@ export const createCriterionValidation = Joi.object({
             'string.max': 'La descripción del criterio no puede exceder 500 caracteres',
             'any.required': 'La descripción del criterio es obligatoria',
             'string.base': 'La descripción debe ser texto',
-            'string.pattern.base': 'La descripción debe contener solo letras, números y al menos un espacio. Solo se permiten tildes en vocales.',
             'custom.onlySpaces': 'La descripción no puede ser solo espacios',
+            'custom.noSpace': 'La descripción debe contener al menos un espacio',
+            'custom.invalidChars': 'La descripción solo puede contener letras, números y espacios. Se permiten tildes en vocales.',
             'custom.repeatedChar': 'La descripción no puede ser solo una letra repetida',
         }),
     scor_max: Joi.number()
@@ -52,11 +60,19 @@ export const updateCriterionValidation = Joi.object({
         .min(3)
         .max(500)
         .optional()
-        .pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+(\s[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9]+)+$/)
         .custom((value, helpers) => {
+            if (!value) return value;
             // Verificar que no sea solo espacios
             if (value.trim().length === 0) {
                 return helpers.error('custom.onlySpaces');
+            }
+            // Verificar que tenga al menos un espacio (múltiples palabras)
+            if (!/\s/.test(value.trim())) {
+                return helpers.error('custom.noSpace');
+            }
+            // Verificar que solo contenga letras, números, espacios y tildes
+            if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s]+$/.test(value)) {
+                return helpers.error('custom.invalidChars');
             }
             // Verificar que no sea solo una letra repetida
             const cleanText = value.replace(/\s/g, '').toLowerCase();
@@ -69,8 +85,9 @@ export const updateCriterionValidation = Joi.object({
             'string.min': 'La descripción del criterio debe tener al menos 3 caracteres',
             'string.max': 'La descripción del criterio no puede exceder 500 caracteres',
             'string.base': 'La descripción debe ser texto',
-            'string.pattern.base': 'La descripción debe contener solo letras, números y al menos un espacio. Solo se permiten tildes en vocales.',
             'custom.onlySpaces': 'La descripción no puede ser solo espacios',
+            'custom.noSpace': 'La descripción debe contener al menos un espacio',
+            'custom.invalidChars': 'La descripción solo puede contener letras, números y espacios. Se permiten tildes en vocales.',
             'custom.repeatedChar': 'La descripción no puede ser solo una letra repetida',
         }),
     scor_max: Joi.number()
