@@ -39,8 +39,7 @@ export const Evaluation_detail = new EntitySchema({
             createDate: true,
         },
         status: {
-            type: 'varchar',
-            length: 20,
+            type: 'enum',
             enum: ['pending', 'completed'],
             default: 'pending',
             nullable: false,
