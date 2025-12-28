@@ -5,6 +5,7 @@ export interface Estudiante {
     user_name: string;
     rut: string;
     role?: string;
+    status?: 'pending' | 'completed';
 }
 
 export interface EvaluacionResumen {
@@ -30,6 +31,7 @@ export interface Commission {
     estudiantes?: Estudiante[];
     evaluaciones?: EvaluacionResumen[];
     totalEstudiantes?: number;
+    finalizada?: boolean;
 }
 
 export interface CreateCommissionData {
