@@ -1,3 +1,4 @@
+//#region IMPORTS
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
@@ -16,8 +17,9 @@ import {
     Estudiante as EstudianteAPI
 } from '../services/commissionService';
 import { useAuth } from '../hooks/useAuth';
+//#endregion
 
-// Interfaces para los datos
+//#region INTERFACES
 interface Tema {
     id: number;
     nombre: string;
@@ -56,11 +58,13 @@ interface Evaluacion {
     estado: 'pendiente' | 'finalizada';
     fechaCreacion: string;
     totalEstudiantes: number;
+    profesorNombre?: string;
 }
 
-// Los datos se cargan desde el backend
+//#endregion
 
 export default function Comisiones() {
+    //#region HOOKS Y ESTADOS
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { user } = useAuth();
@@ -166,11 +170,15 @@ export default function Comisiones() {
         loadComisiones();
         // Los estudiantes se cargan cuando se selecciona un tema
     }, []);
+    //#endregion
 
+    //#region FUNCIONES DE CARGA DE DATOS (load*)
     const loadComisiones = async () => {
         try {
             setLoadingEvaluaciones(true);
-            const userId = user?.id ? parseInt(user.id) : undefined;
+            // Si es administrador, no filtrar por userId para ver todas las comisiones
+            const isAdmin = user?.role?.toLowerCase() === 'administrador';
+            const userId = (!isAdmin && user?.id) ? parseInt(user.id) : undefined;
             const data = await getCommissions(userId ? { userId } : undefined);
 
             // Agrupar comisiones por evaluation_group para crear "evaluaciones"
@@ -193,6 +201,7 @@ export default function Comisiones() {
                         estado: 'pendiente', // Se calculará después
                         fechaCreacion: commission.date,
                         totalEstudiantes: 0,
+                        profesorNombre: commission.profesor?.user_name || 'Sin profesor',
                     });
                 }
 
@@ -261,16 +270,22 @@ export default function Comisiones() {
             // Cargar todas las asignaturas para obtener los nombres
             const allSubjectsData = await getAllSubjects();
             
-            // Cargar solo las asignaturas del profesor para filtrar
-            const userId = user?.id ? parseInt(user.id) : undefined;
-            const profesorSubjects = userId ? await getSubjectsByUser(userId) : [];
-            const profesorSubjectIds = profesorSubjects.map((s: Subject) => Number(s.subject_id));
+            // Verificar si es administrador
+            const isAdmin = user?.role?.toLowerCase() === 'administrador';
+            
+            // Si es admin, no filtrar por profesor
+            let profesorSubjectIds: number[] = [];
+            if (!isAdmin) {
+                const userId = user?.id ? parseInt(user.id) : undefined;
+                const profesorSubjects = userId ? await getSubjectsByUser(userId) : [];
+                profesorSubjectIds = profesorSubjects.map((s: Subject) => Number(s.subject_id));
+            }
             
             setAsignaturas(allSubjectsData);
             
-            // Filtrar y transformar los temas (solo los de asignaturas del profesor)
+            // Filtrar y transformar los temas (admin ve todos, profesor solo los de sus asignaturas)
             const temasTransformados: Tema[] = themesData
-                .filter((theme: Theme) => profesorSubjectIds.includes(Number(theme.subject_id)))
+                .filter((theme: Theme) => isAdmin || profesorSubjectIds.includes(Number(theme.subject_id)))
                 .map((theme: Theme) => {
                     const themeSubjectId = Number(theme.subject_id);
                     const asignatura = allSubjectsData.find((s: Subject) => Number(s.subject_id) === themeSubjectId);
@@ -309,7 +324,9 @@ export default function Comisiones() {
             setLoadingEstudiantes(false);
         }
     };
+    //#endregion
 
+    //#region HANDLERS DE EVENTOS (handle*)
     const handleTemaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const temaId = parseInt(e.target.value);
         const tema = temas.find(t => t.id === temaId) || null;
@@ -620,6 +637,7 @@ export default function Comisiones() {
                             evaluada: false,
                         })),
                         estado: 'pendiente',
+                        estado: 'pendiente',
                         fechaCreacion: primeraComision.date,
                         totalEstudiantes: comisionesDeEvaluacion.reduce(
                             (sum, c) => sum + (c.estudiantes?.length || 0), 0
@@ -691,7 +709,9 @@ export default function Comisiones() {
             });
         }
     };
+    //#endregion
 
+    //#region FUNCIONES AUXILIARES Y FILTROS
     // Obtener estudiantes ya asignados según el contexto (excluye la comisión en edición)
     const getEstudiantesYaAsignados = () => {
         if (modalContext === 'detalle' && evaluacionSeleccionada) {
@@ -741,8 +761,9 @@ export default function Comisiones() {
         const fechas = evaluacion.comisiones.map(c => c.fecha).sort();
         return formatDateShort(fechas[0]);
     };
+    //#endregion
 
-    // ==================== VISTA DE LISTA ====================
+    //#region VISTA DE LISTA
     if (vistaActual === 'lista') {
         return (
             <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -806,7 +827,15 @@ export default function Comisiones() {
                                                     <h3 className="text-lg font-bold text-gray-800">{evaluacion.tema.nombre}</h3>
                                                     {getEstadoBadge(evaluacion.estado)}
                                                 </div>
-                                                <p className="text-sm text-gray-600 mb-3">{evaluacion.tema.asignatura}</p>
+                                                <p className="text-sm text-gray-600 mb-1">{evaluacion.tema.asignatura}</p>
+                                                {evaluacion.profesorNombre && (
+                                                    <p className="text-sm text-blue-600 mb-3 flex items-center gap-1">
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                        </svg>
+                                                        Profesor: {evaluacion.profesorNombre}
+                                                    </p>
+                                                )}
 
                                                 <div className="flex flex-wrap gap-4 text-sm text-gray-500">
                                                     <div className="flex items-center gap-1">
@@ -847,8 +876,9 @@ export default function Comisiones() {
             </div>
         );
     }
+    //#endregion
 
-    // ==================== VISTA DE DETALLE ====================
+    //#region VISTA DE DETALLE
     if (vistaActual === 'detalle' && evaluacionSeleccionada) {
         return (
             <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -939,7 +969,7 @@ export default function Comisiones() {
 
                         {/* Lista de Comisiones */}
                         <div className="grid gap-4">
-                            {evaluacionSeleccionada.comisiones.map((comision) => (
+                            {evaluacionSeleccionada.comisiones.map((comision, index) => (
                                 <div
                                     key={comision.id}
                                     className="bg-white rounded-lg shadow-sm border border-gray-100 p-5 hover:shadow-md transition"
@@ -950,7 +980,7 @@ export default function Comisiones() {
                                                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${comision.modalidad === 'presencial' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
                                                     {comision.modalidad === 'presencial' ? '📍 Presencial' : '💻 Online'}
                                                 </span>
-                                                <span className="text-sm text-gray-500">Comisión #{comision.id}</span>
+                                                <span className="text-sm text-gray-500">Comisión {index + 1}</span>
                                             </div>
 
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -1269,8 +1299,9 @@ export default function Comisiones() {
             </div>
         );
     }
+    //#endregion
 
-    // ==================== VISTA DE CREACIÓN ====================
+    //#region VISTA DE CREACIÓN
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col">
             <Header variant="default" title="Facultad de Derecho" />
@@ -1332,11 +1363,11 @@ export default function Comisiones() {
                     {/* Paneles de configuración (solo si hay tema seleccionado) */}
                     {temaSeleccionado && (
                         <>
-                            {/* Panel A: Configuración de Pauta */}
+                            {/* Panel 2: Configuración de Pauta */}
                             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
                                 <div className="flex items-center gap-3 mb-4">
-                                    <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#003366] text-white font-bold text-sm">A</span>
-                                    <h2 className="text-lg font-bold text-[#003366]">Configuración de Pauta (Guideline)</h2>
+                                    <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#003366] text-white font-bold text-sm">2</span>
+                                    <h2 className="text-lg font-bold text-[#003366]">Configuración de Pauta</h2>
                                 </div>
 
                                 <div className="space-y-4">
@@ -1389,12 +1420,12 @@ export default function Comisiones() {
                                 </div>
                             </div>
 
-                            {/* Panel B: Gestión de Comisiones */}
+                            {/* Panel 3: Gestión de Comisiones */}
                             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
                                 <div className="flex items-center justify-between mb-6">
                                     <div className="flex items-center gap-3">
-                                        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#003366] text-white font-bold text-sm">B</span>
-                                        <h2 className="text-lg font-bold text-[#003366]">Gestión de Comisiones (Logística)</h2>
+                                        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#003366] text-white font-bold text-sm">3</span>
+                                        <h2 className="text-lg font-bold text-[#003366]">Gestión de Comisiones</h2>
                                     </div>
                                     <button
                                         onClick={() => { setModalContext('crear'); setShowModal(true); }}
@@ -1418,13 +1449,14 @@ export default function Comisiones() {
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {comisiones.map((comision) => (
+                                        {comisiones.map((comision, index) => (
                                             <div
                                                 key={comision.id}
                                                 className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition bg-white"
                                             >
                                                 <div className="flex items-start justify-between mb-3">
                                                     <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-semibold text-gray-700">Comisión {index + 1}</span>
                                                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${comision.modalidad === 'presencial' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
                                                             {comision.modalidad === 'presencial' ? '📍 Presencial' : '💻 Online'}
                                                         </span>
@@ -1481,9 +1513,6 @@ export default function Comisiones() {
                                                             </svg>
                                                             <span className="text-sm text-gray-600">{comision.estudiantes.length} estudiantes</span>
                                                         </div>
-                                                        <button className="text-xs text-[#003366] hover:underline font-medium">
-                                                            Ver lista
-                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1498,9 +1527,6 @@ export default function Comisiones() {
                                     <div className="text-center sm:text-left">
                                         <p className="text-sm text-gray-600">
                                             <span className="font-semibold">{comisiones.length}</span> comisión(es) configurada(s) para este tema
-                                        </p>
-                                        <p className="text-xs text-gray-400 mt-1">
-                                            Los estudiantes recibirán una notificación por correo electrónico
                                         </p>
                                     </div>
                                     <div className="flex gap-3">
@@ -1716,4 +1742,5 @@ export default function Comisiones() {
             <BottomNavigation />
         </div>
     );
+    //#endregion
 }

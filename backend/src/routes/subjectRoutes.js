@@ -43,7 +43,8 @@ router.get('/by-user/:userId', async (req, res) => {
     try {
         const subjectRepository = AppDataSource.getRepository(Subject);
         const subjects = await subjectRepository.find({
-            where: { user_id: parseInt(userId) }
+            where: { user_id: parseInt(userId) },
+            relations: ['term']
         });
 
         res.json(subjects);

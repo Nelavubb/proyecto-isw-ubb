@@ -95,6 +95,13 @@ export default function Users() {
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
+    
+    // Estados para ordenamiento
+    const [sortColumn, setSortColumn] = useState<'rut' | 'user_name' | 'role' | null>(null);
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    
+    // Estado para filtro por rol
+    const [filterRole, setFilterRole] = useState<string>('');
 
     const [formData, setFormData] = useState<{ rut: string; user_name: string; role: string; password: string }>({
         rut: '',
@@ -118,6 +125,74 @@ export default function Users() {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Función para manejar click en columna de ordenamiento
+    const handleSort = (column: 'rut' | 'user_name' | 'role') => {
+        if (sortColumn === column) {
+            // Si ya está ordenando por esta columna, cambiar dirección
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            // Nueva columna, empezar con ascendente
+            setSortColumn(column);
+            setSortDirection('asc');
+        }
+    };
+
+    // Función para extraer número del RUT para ordenamiento numérico
+    const extractRutNumber = (rut: string): number => {
+        const numPart = rut.split('-')[0].replace(/\./g, '');
+        return parseInt(numPart, 10) || 0;
+    };
+
+    // Usuarios filtrados y ordenados
+    const filteredAndSortedUsers = React.useMemo(() => {
+        let result = [...users];
+        
+        // Aplicar filtro por rol
+        if (filterRole) {
+            result = result.filter(user => user.role === filterRole);
+        }
+        
+        // Aplicar ordenamiento
+        if (sortColumn) {
+            result.sort((a, b) => {
+                let comparison = 0;
+                
+                if (sortColumn === 'rut') {
+                    // Ordenar RUT numéricamente
+                    comparison = extractRutNumber(a.rut) - extractRutNumber(b.rut);
+                } else if (sortColumn === 'user_name') {
+                    comparison = a.user_name.localeCompare(b.user_name, 'es', { sensitivity: 'base' });
+                } else if (sortColumn === 'role') {
+                    comparison = a.role.localeCompare(b.role, 'es', { sensitivity: 'base' });
+                }
+                
+                return sortDirection === 'asc' ? comparison : -comparison;
+            });
+        }
+        
+        return result;
+    }, [users, filterRole, sortColumn, sortDirection]);
+
+    // Icono de ordenamiento
+    const SortIcon = ({ column }: { column: 'rut' | 'user_name' | 'role' }) => {
+        if (sortColumn !== column) {
+            return (
+                <svg className="w-4 h-4 ml-1 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+            );
+        }
+        return sortDirection === 'asc' ? (
+            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            </svg>
+        ) : (
+            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+        );
     };
 
     const handleOpenModal = (user?: User) => {
@@ -221,6 +296,36 @@ export default function Users() {
                         </button>
                     </div>
 
+                    {/* Filtro por Rol */}
+                    <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                                Filtrar por rol:
+                            </label>
+                            <select
+                                value={filterRole}
+                                onChange={(e) => setFilterRole(e.target.value)}
+                                className="flex-1 sm:max-w-xs px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366] focus:border-[#003366] transition"
+                            >
+                                <option value="">Todos los roles</option>
+                                <option value="Estudiante">Estudiante</option>
+                                <option value="Profesor">Profesor</option>
+                                <option value="Administrador">Administrador</option>
+                            </select>
+                            {filterRole && (
+                                <button
+                                    onClick={() => setFilterRole('')}
+                                    className="text-sm text-gray-500 hover:text-gray-700 underline"
+                                >
+                                    Limpiar filtro
+                                </button>
+                            )}
+                            <span className="text-sm text-gray-500 ml-auto">
+                                {filteredAndSortedUsers.length} de {users.length} usuarios
+                            </span>
+                        </div>
+                    </div>
+
                     {/* Tabla de Usuarios */}
                     <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
                         {loading ? (
@@ -240,14 +345,35 @@ export default function Users() {
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-[#003366]">
                                         <tr>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                                                RUT
+                                            <th 
+                                                scope="col" 
+                                                className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer hover:bg-[#004488] transition select-none"
+                                                onClick={() => handleSort('rut')}
+                                            >
+                                                <div className="flex items-center">
+                                                    RUT
+                                                    <SortIcon column="rut" />
+                                                </div>
                                             </th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                                                Nombre de Usuario
+                                            <th 
+                                                scope="col" 
+                                                className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer hover:bg-[#004488] transition select-none"
+                                                onClick={() => handleSort('user_name')}
+                                            >
+                                                <div className="flex items-center">
+                                                    Nombre de Usuario
+                                                    <SortIcon column="user_name" />
+                                                </div>
                                             </th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                                                Rol
+                                            <th 
+                                                scope="col" 
+                                                className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer hover:bg-[#004488] transition select-none"
+                                                onClick={() => handleSort('role')}
+                                            >
+                                                <div className="flex items-center">
+                                                    Rol
+                                                    <SortIcon column="role" />
+                                                </div>
                                             </th>
                                             <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">
                                                 Acciones
@@ -255,7 +381,7 @@ export default function Users() {
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
-                                        {users.map((user) => (
+                                        {filteredAndSortedUsers.map((user) => (
                                             <tr key={user.user_id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="text-sm font-medium text-gray-900">{user.rut}</div>
