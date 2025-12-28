@@ -152,6 +152,15 @@ export const updateEvaluationValidation = Joi.object({
     .valid('pending', 'completed', 'cancelled')
     .messages({
       'any.only': 'El estado debe ser: pending, completed o cancelled'
+    }),
+
+  scores: Joi.array()
+    .items(Joi.object({
+      criterion_id: Joi.number().integer().positive().required(),
+      actual_score: Joi.number().min(0).required()
+    }))
+    .messages({
+      'array.base': 'Los scores deben ser un array'
     })
 }).min(1).messages({
   'object.min': 'Debe proporcionar al menos un campo para actualizar'

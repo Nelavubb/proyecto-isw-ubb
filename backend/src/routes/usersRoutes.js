@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import { AppDataSource } from '../config/database.js';
-import { User } from '../models/user.js';
+import { User } from '../models/User.js';
 import { registerValidation } from '../validations/userValidation.js';
 
 const router = express.Router();
@@ -156,6 +156,7 @@ router.get('/students/by-subject/:subjectId', async (req, res) => {
         const { subjectId } = req.params;
         
         // Query usando student_subject como tabla de relación
+        // Filtramos solo usuarios con rol 'Estudiante'
         const users = await userRepository()
             .createQueryBuilder('user')
             .innerJoin(
@@ -164,6 +165,7 @@ router.get('/students/by-subject/:subjectId', async (req, res) => {
                 'ss.user_id = user.user_id'
             )
             .where('ss.subject_id = :subjectId', { subjectId })
+            .andWhere('user.role = :role', { role: 'Estudiante' })
             .select(['user.user_id', 'user.rut', 'user.user_name'])
             .getMany();
 

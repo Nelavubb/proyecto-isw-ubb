@@ -29,7 +29,36 @@ router.get('/', async (req, res) => {
             .orderBy('commission.date', 'DESC')
             .getMany();
 
-        res.json(commissions);
+        // Enriquecer con estudiantes asignados
+        const enrichedCommissions = await Promise.all(
+            commissions.map(async (commission) => {
+                const evaluationRepository = AppDataSource.getRepository('Evaluation_detail');
+                const evaluations = await evaluationRepository
+                    .createQueryBuilder('ed')
+                    .where('ed.commission_id = :commissionId', { commissionId: commission.commission_id })
+                    .getMany();
+
+                const userRepository = AppDataSource.getRepository('user');
+                const studentIds = evaluations.map(e => e.user_id);
+                let students = [];
+
+                if (studentIds.length > 0) {
+                    students = await userRepository
+                        .createQueryBuilder('user')
+                        .where('user.user_id IN (:...studentIds)', { studentIds })
+                        .select(['user.user_id', 'user.user_name', 'user.rut'])
+                        .getMany();
+                }
+
+                return {
+                    ...commission,
+                    estudiantes: students,
+                    totalEstudiantes: students.length
+                };
+            })
+        );
+
+        res.json(enrichedCommissions);
     } catch (error) {
         console.error('Error fetching commissions:', error);
         res.status(500).json({ error: 'Error al obtener comisiones' });
@@ -71,7 +100,7 @@ router.get('/:id', async (req, res) => {
             students = await userRepository
                 .createQueryBuilder('user')
                 .where('user.user_id IN (:...studentIds)', { studentIds })
-                .select(['user.user_id', 'user.user_name', 'user.rut'])
+                .select(['user.user_id', 'user.user_name', 'user.rut', 'user.role'])
                 .getMany();
         }
 
@@ -119,7 +148,7 @@ router.get('/by-theme/:themeId', async (req, res) => {
                     students = await userRepository
                         .createQueryBuilder('user')
                         .where('user.user_id IN (:...studentIds)', { studentIds })
-                        .select(['user.user_id', 'user.user_name', 'user.rut'])
+                        .select(['user.user_id', 'user.user_name', 'user.rut', 'user.role'])
                         .getMany();
                 }
 
@@ -143,6 +172,11 @@ router.get('/by-theme/:themeId', async (req, res) => {
  * Crea una nueva comisión con estudiantes asignados
  */
 router.post('/', async (req, res) => {
+    // Usar transacción para evitar comisiones huérfanas si hay error
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    
     try {
         const { 
             commission_name, 
@@ -160,15 +194,14 @@ router.post('/', async (req, res) => {
 
         // Validaciones
         if (!commission_name || !user_id || !theme_id || !date || !time || !location || !evaluation_group) {
+            await queryRunner.rollbackTransaction();
             return res.status(400).json({ 
                 error: 'Faltan campos requeridos: commission_name, user_id, theme_id, date, time, location, evaluation_group' 
             });
         }
 
-        const commissionRepository = AppDataSource.getRepository(Commission);
-
         // Crear la comisión
-        const newCommission = commissionRepository.create({
+        const newCommission = queryRunner.manager.create(Commission, {
             commission_name,
             user_id,
             theme_id,
@@ -179,32 +212,39 @@ router.post('/', async (req, res) => {
         });
 
         console.log('Intentando guardar comisión:', newCommission);
-        const savedCommission = await commissionRepository.save(newCommission);
+        const savedCommission = await queryRunner.manager.save(Commission, newCommission);
         console.log('Comisión guardada:', savedCommission);
 
         // Si hay estudiantes, crear los evaluation_details para cada uno
         if (estudiantes && estudiantes.length > 0) {
-            const evaluationRepository = AppDataSource.getRepository(Evaluation_detail);
-            
             for (const studentId of estudiantes) {
                 const evaluationData = {
                     user_id: studentId,
                     commission_id: savedCommission.commission_id,
-                    guidline_id: guideline_id || null,
                     status: 'pending'
                 };
+                // Solo agregar guidline_id si existe
+                if (guideline_id) {
+                    evaluationData.guidline_id = guideline_id;
+                }
                 console.log('Creando evaluation_detail:', evaluationData);
                 
-                const evaluation = evaluationRepository.create(evaluationData);
-                await evaluationRepository.save(evaluation);
+                const evaluation = queryRunner.manager.create(Evaluation_detail, evaluationData);
+                await queryRunner.manager.save(Evaluation_detail, evaluation);
             }
             console.log('Evaluation details creados');
         }
 
+        // Confirmar transacción
+        await queryRunner.commitTransaction();
         res.status(201).json(savedCommission);
     } catch (error) {
+        // Revertir cambios si hay error
+        await queryRunner.rollbackTransaction();
         console.error('Error creating commission:', error);
         res.status(500).json({ error: 'Error al crear comisión', details: error.message });
+    } finally {
+        await queryRunner.release();
     }
 });
 
@@ -213,17 +253,26 @@ router.post('/', async (req, res) => {
  * Actualiza una comisión existente y sus estudiantes
  */
 router.put('/:id', async (req, res) => {
+    // Usar transacción para evitar pérdida de datos si hay error
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    
     try {
         const { id } = req.params;
         const { commission_name, date, time, location, estudiantes } = req.body;
 
-        const commissionRepository = AppDataSource.getRepository(Commission);
-        const commission = await commissionRepository.findOne({
+        console.log('PUT /api/commissions/:id - ID recibido:', id, 'tipo:', typeof id);
+
+        const commission = await queryRunner.manager.findOne(Commission, {
             where: { commission_id: parseInt(id) }
         });
 
+        console.log('Comisión encontrada:', commission);
+
         if (!commission) {
-            return res.status(404).json({ error: 'Comisión no encontrada' });
+            await queryRunner.rollbackTransaction();
+            return res.status(404).json({ error: 'Comisión no encontrada', details: `No se encontró comisión con ID: ${id}` });
         }
 
         if (commission_name) commission.commission_name = commission_name;
@@ -231,16 +280,15 @@ router.put('/:id', async (req, res) => {
         if (time) commission.time = time;
         if (location) commission.location = location;
 
-        const updatedCommission = await commissionRepository.save(commission);
+        const updatedCommission = await queryRunner.manager.save(Commission, commission);
 
         // Si se proporcionan estudiantes, actualizar los evaluation_details
         if (estudiantes && Array.isArray(estudiantes)) {
-            const evaluationRepository = AppDataSource.getRepository(Evaluation_detail);
-            
             // Eliminar los evaluation_details actuales de esta comisión
-            await evaluationRepository
+            await queryRunner.manager
                 .createQueryBuilder()
                 .delete()
+                .from(Evaluation_detail)
                 .where('commission_id = :commissionId', { commissionId: id })
                 .execute();
             
@@ -252,15 +300,21 @@ router.put('/:id', async (req, res) => {
                     status: 'pending'
                 };
                 
-                const evaluation = evaluationRepository.create(evaluationData);
-                await evaluationRepository.save(evaluation);
+                const evaluation = queryRunner.manager.create(Evaluation_detail, evaluationData);
+                await queryRunner.manager.save(Evaluation_detail, evaluation);
             }
         }
 
+        // Confirmar transacción
+        await queryRunner.commitTransaction();
         res.json(updatedCommission);
     } catch (error) {
+        // Revertir cambios si hay error
+        await queryRunner.rollbackTransaction();
         console.error('Error updating commission:', error);
-        res.status(500).json({ error: 'Error al actualizar comisión' });
+        res.status(500).json({ error: 'Error al actualizar comisión', details: error.message });
+    } finally {
+        await queryRunner.release();
     }
 });
 

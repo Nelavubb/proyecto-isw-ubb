@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
-import { getEvaluationsPending, updateEvaluation, completeEvaluation, EvaluationDetail } from '../services/evaluationService';
+import { getEvaluationsPending, updateEvaluation, completeEvaluation, createEvaluation, EvaluationDetail } from '../services/evaluationService';
 import { getAllQuestions } from '../services/questionService';
 import { getGuidelinesByTheme } from '../services/guidelineService';
 
@@ -33,6 +33,12 @@ type EvaluacionPendiente = EvaluationDetail & {
     };
   };
   criteria?: any[];
+  scores?: Array<{
+    score_id: number;
+    criterion_id: number;
+    actual_score: number;
+    evaluation_detail_id: number;
+  }>;
 };
 
 export default function RealizacionEvaluacion() {
@@ -41,7 +47,9 @@ export default function RealizacionEvaluacion() {
   
   // Obtener parámetros de la URL
   const evaluationDetailId = searchParams.get('evaluation_detail_id');
+  const commissionId = searchParams.get('commission_id');
   const themeId = searchParams.get('theme_id');
+  const userId = searchParams.get('user_id');
 
   // Estados principales
   const [evaluacionSeleccionada, setEvaluacionSeleccionada] = useState<EvaluacionPendiente | null>(null);
@@ -58,43 +66,97 @@ export default function RealizacionEvaluacion() {
   const [completed, setCompleted] = useState(false);
   const [toast, setToast] = useState<{ type: 'info' | 'success' | 'error'; text: string } | null>(null);
   const [questionBank, setQuestionBank] = useState<Question[]>([]);
+  const [showExitModal, setShowExitModal] = useState(false);
 
   const FEEDBACK_MAX_CHARS = 500;
 
   // Cargar datos al montar el componente
   useEffect(() => {
     loadData();
-  }, [evaluationDetailId, themeId]);
+  }, [evaluationDetailId, commissionId, themeId, userId]);
 
   const loadData = async () => {
     try {
       setLoading(true);
       
-      if (!evaluationDetailId || !themeId) {
+      // Validar que tengamos los parámetros necesarios
+      if (!themeId || (!evaluationDetailId && !commissionId)) {
         setToast({ type: 'error', text: 'Parámetros inválidos. Por favor, vuelve a Comisiones.' });
         setTimeout(() => navigate('/comisiones'), 2000);
         return;
       }
 
-      // Cargar la evaluación específica
-      const evaluaciones = await getEvaluationsPending();
-      const evalBase = evaluaciones.find(e => e.evaluation_detail_id === parseInt(evaluationDetailId));
-      
-      if (!evalBase) {
-        setToast({ type: 'error', text: 'Evaluación no encontrada.' });
+      // Validar que tengamos el user_id del estudiante
+      if (!userId && !evaluationDetailId) {
+        setToast({ type: 'error', text: 'No se especificó el estudiante a evaluar.' });
         setTimeout(() => navigate('/comisiones'), 2000);
+        return;
+      }
+
+      // Cargar la pauta primero para obtener el guidline_id
+      let guidelineData: any = null;
+      try {
+        const guidelines = await getGuidelinesByTheme(parseInt(themeId));
+        if (guidelines && guidelines.length > 0) {
+          guidelineData = guidelines[0];
+        }
+      } catch (error) {
+        console.warn('No se pudo cargar la pauta:', error);
+      }
+
+      // Cargar las evaluaciones pendientes
+      const evaluaciones = await getEvaluationsPending();
+      
+      // Buscar la evaluación por evaluation_detail_id o commission_id
+      let evalBase;
+      if (evaluationDetailId) {
+        evalBase = evaluaciones.find(e => e.evaluation_detail_id === parseInt(evaluationDetailId));
+      } else if (commissionId && userId) {
+        // Buscar evaluación pendiente para este estudiante específico en esta comisión
+        const userIdNum = parseInt(userId);
+        evalBase = evaluaciones.find(e => 
+          e.commission_id === parseInt(commissionId) && e.user_id === userIdNum
+        );
+        
+        // Si no hay evaluación pendiente para este estudiante, crear una
+        if (!evalBase && guidelineData) {
+          try {
+            console.log('Creando nueva evaluación para estudiante ID:', userIdNum);
+            const newEvaluation = await createEvaluation({
+              user_id: userIdNum,
+              commission_id: parseInt(commissionId),
+              guidline_id: guidelineData.guidline_id,
+              status: 'pending'
+            });
+            console.log('Evaluación creada:', newEvaluation);
+            evalBase = newEvaluation;
+          } catch (error) {
+            console.error('Error creando evaluación:', error);
+            setToast({ type: 'error', text: 'Error al preparar la evaluación.' });
+            setTimeout(() => navigate('/comisiones'), 3000);
+            return;
+          }
+        }
+      }
+
+      if (!evalBase) {
+        console.warn('No se encontró evaluación pendiente. Evaluaciones disponibles:', evaluaciones);
+        console.warn('Buscando commission_id:', commissionId, 'evaluation_detail_id:', evaluationDetailId, 'user_id:', userId);
+        setToast({ type: 'error', text: 'No hay evaluaciones pendientes para esta comisión. Verifique que los estudiantes estén asignados correctamente.' });
+        setTimeout(() => navigate('/comisiones'), 3000);
         return;
       }
 
       // Castear a tipo completo
       const evaluation = evalBase as EvaluacionPendiente;
 
-      // Cargar pauta para el tema
+      // Usar la pauta ya cargada anteriormente o cargarla si no existe
       try {
         setLoadingGuideline(true);
-        const guidelines = await getGuidelinesByTheme(parseInt(themeId));
-        if (guidelines && guidelines.length > 0) {
-          const guideline = guidelines[0];
+        const guideline = guidelineData;
+        if (guideline) {
+          console.log('Pauta seleccionada:', guideline);
+          console.log('Criterios de la pauta:', guideline.description);
           // Enriquecer la evaluación con los criterios de la pauta
           evaluation.criteria = guideline.description || [];
           evaluation.guidline = {
@@ -102,9 +164,11 @@ export default function RealizacionEvaluacion() {
             name: guideline.name,
             theme: {
               theme_id: guideline.theme_id,
-              theme_name: ''
+              theme_name: (guideline as any).theme?.theme_name || ''
             }
           };
+        } else {
+          console.warn('No se encontraron pautas para el tema:', themeId);
         }
       } catch (error) {
         console.warn('No se pudo cargar la pauta:', error);
@@ -114,17 +178,38 @@ export default function RealizacionEvaluacion() {
 
       setEvaluacionSeleccionada(evaluation);
 
-      // Cargar criterios de la pauta
+      // Cargar observaciones existentes si las hay
+      if (evaluation.observation) {
+        setFeedback(evaluation.observation);
+        setFeedbackCharCount(evaluation.observation.length);
+      }
+
+      // Cargar criterios de la pauta con puntajes existentes
       if (evaluation.criteria && Array.isArray(evaluation.criteria) && evaluation.criteria.length > 0) {
-        const loadedCriteria = evaluation.criteria.map((crit: any) => ({
-          criterion_id: crit.criterion_id,
-          description: crit.description,
-          scor_max: crit.scor_max || 5,
-          score: evaluation.grade ? null : null,
-        }));
+        const loadedCriteria = evaluation.criteria.map((crit: any) => {
+          // Buscar si existe un score guardado para este criterio
+          const existingScore = evaluation.scores?.find(
+            (s: any) => s.criterion_id === crit.criterion_id
+          );
+          return {
+            criterion_id: crit.criterion_id,
+            description: crit.description,
+            scor_max: crit.scor_max || 5,
+            score: existingScore ? existingScore.actual_score : null,
+          };
+        });
         setCriteria(loadedCriteria);
       } else {
         setCriteria([]);
+      }
+
+      // Cargar pregunta existente si hay question_asked
+      if (evaluation.question_asked) {
+        setCurrentQuestion({
+          id: 'saved',
+          text: evaluation.question_asked,
+          topic: themeId || ''
+        });
       }
 
       // Cargar banco de preguntas
@@ -154,19 +239,43 @@ export default function RealizacionEvaluacion() {
     return criteria.reduce((sum, c) => sum + c.scor_max, 0);
   }, [criteria]);
 
+  // Función para calcular la nota de 1-7 basada en el porcentaje
+  // 51% de exigencia para nota 4.0 (aprobación)
+  const calculateFinalGrade = (totalScore: number, maxScore: number): number => {
+    if (maxScore === 0) return 1;
+    
+    const percentage = totalScore / maxScore;
+    
+    if (percentage < 0.51) {
+      // Mapea 0-51% a notas 1.0-4.0
+      return 1 + (percentage / 0.51) * 3;
+    } else {
+      // Mapea 51-100% a notas 4.0-7.0
+      return 4 + ((percentage - 0.51) / 0.49) * 3;
+    }
+  };
+
+  // Nota calculada automáticamente
+  const notaCalculada = useMemo(() => {
+    return calculateFinalGrade(partialTotal, maxTotal);
+  }, [partialTotal, maxTotal]);
+
   const pautaExiste = evaluacionSeleccionada && evaluacionSeleccionada.criteria && evaluacionSeleccionada.criteria.length > 0;
 
   const generateRandomQuestion = () => {
-    if (!evaluacionSeleccionada?.guidline?.theme?.theme_name) {
+    // Obtener el theme_id de la evaluación para filtrar preguntas
+    const currentThemeId = themeId || evaluacionSeleccionada?.guidline?.theme?.theme_id?.toString();
+    
+    if (!currentThemeId) {
       setToast({ type: 'error', text: 'No hay tema asociado a esta evaluación.' });
       return;
     }
 
-    const themeName = evaluacionSeleccionada.guidline.theme.theme_name;
-    const pool = questionBank.filter((q) => q.topic === themeName);
+    // Filtrar preguntas por theme_id
+    const pool = questionBank.filter((q) => q.topic === currentThemeId);
 
     if (pool.length === 0) {
-      setToast({ type: 'error', text: 'No hay preguntas para el tema asignado.' });
+      setToast({ type: 'error', text: 'No hay preguntas disponibles para este tema.' });
       return;
     }
 
@@ -176,15 +285,51 @@ export default function RealizacionEvaluacion() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  const updateCriteriaScore = (index: number, value: number | '') => {
+  const updateCriteriaScore = (index: number, value: string) => {
+    // Si está vacío, permitir
+    if (value === '') {
+      setCriteria((prev) =>
+        prev.map((c, i) =>
+          i === index ? { ...c, score: null } : c
+        )
+      );
+      setSaved(false);
+      return;
+    }
+
+    // Convertir coma a punto para procesamiento
+    const strValue = String(value).replace(',', '.');
+    
+    // Validar formato: solo números con máximo 1 decimal
+    const decimalRegex = /^\d+(\.\d{0,1})?$/;
+    if (!decimalRegex.test(strValue)) {
+      return; // No actualizar si el formato no es válido
+    }
+
+    const numValue = parseFloat(strValue);
+    if (isNaN(numValue)) return;
+
+    // Limitar al rango válido
+    const finalValue = Math.max(0, Math.min(criteria[index].scor_max, numValue));
+    
+    // Redondear a 1 decimal
+    const roundedValue = Math.round(finalValue * 10) / 10;
+
     setCriteria((prev) =>
       prev.map((c, i) =>
-        i === index
-          ? { ...c, score: value === '' ? null : Math.max(0, Math.min(c.scor_max, Number(value))) }
-          : c
+        i === index ? { ...c, score: roundedValue } : c
       )
     );
     setSaved(false);
+  };
+
+  // Validar que el texto contenga al menos una letra
+  const isValidFeedback = (text: string): boolean => {
+    // Si está vacío, es válido (campo opcional)
+    if (text.trim() === '') return true;
+    // Debe contener al menos una letra (no solo números y/o caracteres especiales)
+    const hasLetter = /[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/.test(text);
+    return hasLetter;
   };
 
   const handleFeedbackChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -197,16 +342,40 @@ export default function RealizacionEvaluacion() {
     }
   };
 
+  // Validar feedback antes de guardar
+  const validateFeedbackBeforeSave = (): boolean => {
+    if (!isValidFeedback(feedback)) {
+      setToast({ type: 'error', text: 'Las observaciones deben contener texto válido (no solo números o caracteres especiales).' });
+      setTimeout(() => setToast(null), 3000);
+      return false;
+    }
+    return true;
+  };
+
   const guardarProgreso = async () => {
     if (!evaluacionSeleccionada) return;
+    
+    // Validar feedback antes de guardar
+    if (!validateFeedbackBeforeSave()) return;
 
     try {
       setSaving(true);
-      const totalGrade = criteria.reduce((sum, c) => sum + (c.score || 0), 0);
+      const totalScore = criteria.reduce((sum, c) => sum + (c.score || 0), 0);
+      const calculatedGrade = calculateFinalGrade(totalScore, maxTotal);
+
+      // Preparar los scores para enviar
+      const scores = criteria
+        .filter(c => c.score !== null)
+        .map(c => ({
+          criterion_id: c.criterion_id,
+          actual_score: c.score as number
+        }));
 
       await updateEvaluation(evaluacionSeleccionada.evaluation_detail_id, {
-        grade: totalGrade,
-        observation: feedback,
+        grade: parseFloat(calculatedGrade.toFixed(2)),
+        observation: feedback || undefined,
+        question_asked: currentQuestion?.text || undefined,
+        scores: scores.length > 0 ? scores : undefined
       });
 
       setSaved(true);
@@ -221,6 +390,13 @@ export default function RealizacionEvaluacion() {
   };
 
   const finalizeEvaluacion = async () => {
+    // Validar que exista una pregunta generada
+    if (!currentQuestion) {
+      setToast({ type: 'error', text: 'Debe generar una pregunta antes de finalizar.' });
+      setTimeout(() => setToast(null), 2500);
+      return;
+    }
+
     const incomplete = criteria.some((c) => c.score === null);
     if (incomplete) {
       setToast({ type: 'error', text: 'Complete todos los criterios antes de finalizar.' });
@@ -228,16 +404,20 @@ export default function RealizacionEvaluacion() {
       return;
     }
 
+    // Validar feedback antes de finalizar
+    if (!validateFeedbackBeforeSave()) return;
+
     if (!evaluacionSeleccionada) return;
 
     try {
       setSaving(true);
-      const totalGrade = criteria.reduce((sum, c) => sum + (c.score || 0), 0);
+      const totalScore = criteria.reduce((sum, c) => sum + (c.score || 0), 0);
+      const calculatedGrade = calculateFinalGrade(totalScore, maxTotal);
 
       await completeEvaluation(evaluacionSeleccionada.evaluation_detail_id);
 
       setCompleted(true);
-      setToast({ type: 'success', text: `Evaluación completada. Nota final: ${totalGrade}/${maxTotal}` });
+      setToast({ type: 'success', text: `Evaluación completada. Nota final: ${calculatedGrade.toFixed(2)}` });
       setTimeout(() => setToast(null), 3000);
     } catch (error) {
       setToast({ type: 'error', text: 'Error al finalizar evaluación' });
@@ -276,12 +456,6 @@ export default function RealizacionEvaluacion() {
                   <p className="text-xs text-gray-400 uppercase tracking-wide">Estudiante</p>
                   <p className="font-bold text-gray-900">{evaluacionSeleccionada.user?.user_name || `#${evaluacionSeleccionada.user_id}`}</p>
                 </div>
-                <button
-                  onClick={() => navigate('/comisiones')}
-                  className="ml-auto text-blue-600 hover:text-blue-800 underline text-xs font-semibold"
-                >
-                  Volver a Comisiones
-                </button>
               </div>
             ) : (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm mt-4">
@@ -385,54 +559,35 @@ export default function RealizacionEvaluacion() {
                         <h3 className="text-lg font-bold text-[#003366]">Pauta de Evaluación</h3>
                         <p className="text-xs text-gray-500 mt-1">{evaluacionSeleccionada.guidline?.name}</p>
                       </div>
-                      <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full">
-                        Nota: {partialTotal}/{maxTotal}
+                      <span className={`px-3 py-1 text-xs font-bold rounded-full ${notaCalculada >= 4 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                        Nota: {notaCalculada.toFixed(2)}
                       </span>
                     </div>
 
-                    <div className="space-y-8">
+                    <div className="space-y-4">
                       {criteria.map((c, i) => (
-                        <div key={c.criterion_id}>
-                          <div className="flex justify-between items-baseline mb-2">
-                            <div className="flex-1">
-                              <p className="font-bold text-gray-800 text-sm">{c.description}</p>
-                            </div>
-                            <span className="text-xs text-gray-400 font-medium ml-2">Máx: {c.scor_max}</span>
+                        <div key={c.criterion_id} className="flex items-center justify-between gap-4 py-3 border-b border-gray-100 last:border-b-0">
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-800 text-sm">{c.description}</p>
                           </div>
-
-                          <div className="flex items-center gap-4">
-                            {/* Slider */}
-                            <div className="relative w-full h-2 bg-gray-200 rounded-full">
-                              <div
-                                className="absolute h-full bg-[#003366] rounded-full"
-                                style={{ width: `${((c.score || 0) / c.scor_max) * 100}%` }}
-                              ></div>
-                              <input
-                                type="range"
-                                min={0}
-                                max={c.scor_max}
-                                step={1}
-                                value={c.score || 0}
-                                onChange={(e) => updateCriteriaScore(i, Number(e.target.value))}
-                                className="absolute w-full h-full opacity-0 cursor-pointer"
-                                disabled={completed}
-                              />
-                              <div
-                                className="absolute w-4 h-4 bg-[#003366] rounded-full top-1/2 transform -translate-y-1/2 -ml-2 pointer-events-none transition-all"
-                                style={{ left: `${((c.score || 0) / c.scor_max) * 100}%` }}
-                              ></div>
-                            </div>
-
-                            {/* Input de puntaje */}
+                          <div className="flex items-center gap-2">
                             <input
-                              type="number"
-                              min={0}
-                              max={c.scor_max}
+                              type="text"
+                              inputMode="decimal"
+                              pattern="[0-9]*[.,]?[0-9]?"
                               value={c.score === null ? '' : c.score}
-                              onChange={(e) => updateCriteriaScore(i, e.target.value === '' ? '' : Number(e.target.value))}
+                              onChange={(e) => {
+                                const inputValue = e.target.value;
+                                // Permitir vacío, dígitos, punto o coma
+                                if (inputValue === '' || /^[0-9]*[.,]?[0-9]?$/.test(inputValue)) {
+                                  updateCriteriaScore(i, inputValue);
+                                }
+                              }}
+                              placeholder="0"
                               disabled={completed}
-                              className="w-16 border border-gray-200 rounded-md py-1 px-2 text-center text-sm font-medium focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              className="w-16 border border-gray-300 rounded-md py-2 px-2 text-center text-sm font-medium focus:ring-2 focus:ring-[#003366] focus:border-[#003366] focus:outline-none disabled:bg-gray-100"
                             />
+                            <span className="text-sm text-gray-500 font-medium">/ {c.scor_max}</span>
                           </div>
                         </div>
                       ))}
@@ -467,9 +622,12 @@ export default function RealizacionEvaluacion() {
                   <div className="space-y-4">
                     <div>
                       <label className="text-xs font-bold text-gray-500 mb-1 block">Nota final (automática desde la pauta)</label>
-                      <div className="w-full border border-gray-200 rounded-lg px-4 py-2 bg-gray-50 text-gray-700 font-bold text-lg">
-                        {pautaExiste ? `${partialTotal} / ${maxTotal}` : 'N/A'}
+                      <div className={`w-full border border-gray-200 rounded-lg px-4 py-2 bg-gray-50 font-bold text-lg ${notaCalculada >= 4 ? 'text-green-600' : 'text-red-600'}`}>
+                        {pautaExiste ? `${notaCalculada.toFixed(2)}` : 'N/A'}
                       </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Puntaje: {partialTotal} / {maxTotal} ({maxTotal > 0 ? ((partialTotal / maxTotal) * 100).toFixed(1) : 0}%)
+                      </p>
                     </div>
 
                     <div>
@@ -488,24 +646,35 @@ export default function RealizacionEvaluacion() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        if (!completed) {
-                          setToast({ type: 'error', text: 'Finalice la evaluación antes de registrar la retroalimentación.' });
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          if (!completed) {
+                            setToast({ type: 'error', text: 'Finalice la evaluación antes de registrar la retroalimentación.' });
+                            setTimeout(() => setToast(null), 2500);
+                            return;
+                          }
+                          setToast({ type: 'success', text: 'Retroalimentación registrada.' });
                           setTimeout(() => setToast(null), 2500);
-                          return;
-                        }
-                        setToast({ type: 'success', text: 'Retroalimentación registrada.' });
-                        setTimeout(() => setToast(null), 2500);
-                      }}
-                      disabled={!completed}
-                      className="w-full px-4 py-2 bg-[#E67E22] text-white font-bold rounded-lg hover:bg-[#D35400] transition shadow-sm flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                      </svg>
-                      Registrar retroalimentación
-                    </button>
+                        }}
+                        disabled={!completed}
+                        className="flex-1 px-4 py-2 bg-[#E67E22] text-white font-bold rounded-lg hover:bg-[#D35400] transition shadow-sm flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                        </svg>
+                        Registrar retroalimentación
+                      </button>
+                      <button
+                        onClick={() => completed ? navigate('/comisiones') : setShowExitModal(true)}
+                        className="px-4 py-2 bg-gray-500 text-white font-bold rounded-lg hover:bg-gray-600 transition shadow-sm flex items-center justify-center gap-2 text-sm"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Cerrar
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -514,6 +683,58 @@ export default function RealizacionEvaluacion() {
           )}
         </div>
       </main>
+
+      {/* Modal de confirmación de salida */}
+      {showExitModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">¿Está seguro que desea salir?</h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Tiene cambios sin guardar. ¿Desea guardar el progreso antes de salir?
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={async () => {
+                  await guardarProgreso();
+                  setShowExitModal(false);
+                  navigate('/comisiones');
+                }}
+                className="flex-1 px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#002244] transition flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Guardar y salir
+              </button>
+              <button
+                onClick={() => {
+                  setShowExitModal(false);
+                  navigate('/comisiones');
+                }}
+                className="flex-1 px-4 py-2 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Salir sin guardar
+              </button>
+              <button
+                onClick={() => setShowExitModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300 transition"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (

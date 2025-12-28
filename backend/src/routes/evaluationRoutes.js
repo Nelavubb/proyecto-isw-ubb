@@ -1,6 +1,7 @@
 import express from 'express';
 import { AppDataSource } from '../config/database.js';
 import { Evaluation_detail } from '../models/evaluationdetails.js';
+import { score_detail } from '../models/scoredetail.js';
 import { createEvaluationValidation, updateEvaluationValidation } from '../validations/evaluationValidation.js';
 
 const router = express.Router();
@@ -47,12 +48,19 @@ router.get('/pending', async (req, res) => {
           const criterionRepository = AppDataSource.getRepository('criterion');
           criteria = await criterionRepository.find({ where: { guidline_id: evaluation.guidline_id } });
         }
+
+        // Traer score_details existentes para esta evaluación
+        const scoreRepository = AppDataSource.getRepository(score_detail);
+        const existingScores = await scoreRepository.find({ 
+          where: { evaluation_detail_id: evaluation.evaluation_detail_id } 
+        });
         
         return {
           ...evaluation,
           user: user || { user_id: evaluation.user_id, full_name: 'Desconocido' },
           commission: commission || { commission_id: evaluation.commission_id, commission_name: 'Desconocida' },
-          criteria: criteria
+          criteria: criteria,
+          scores: existingScores
         };
       })
     );
@@ -61,6 +69,65 @@ router.get('/pending', async (req, res) => {
   } catch (error) {
     console.error('Error fetching pending evaluations:', error);
     res.status(500).json({ error: 'Error al obtener evaluaciones pendientes' });
+  }
+});
+
+/**
+ * POST /api/evaluation-details
+ * Crea una nueva evaluación
+ */
+router.post('/', async (req, res) => {
+  try {
+    // Validar datos de entrada
+    const { error, value } = await createEvaluationValidation.validateAsync(req.body, { abortEarly: false }).then(
+      value => ({ error: null, value }),
+      error => ({ error, value: null })
+    );
+    
+    if (error) {
+      return res.status(400).json({
+        error: 'Validación fallida',
+        details: error.details.map(detail => ({
+          field: detail.path.join('.'),
+          message: detail.message
+        }))
+      });
+    }
+
+    const evaluationRepository = AppDataSource.getRepository(Evaluation_detail);
+    
+    // Verificar si ya existe una evaluación pendiente para esta comisión, usuario y pauta
+    const existingEvaluation = await evaluationRepository.findOne({
+      where: {
+        user_id: value.user_id,
+        commission_id: value.commission_id,
+        guidline_id: value.guidline_id,
+        status: 'pending'
+      }
+    });
+
+    if (existingEvaluation) {
+      // Si ya existe, retornarla en lugar de crear una nueva
+      return res.status(200).json(existingEvaluation);
+    }
+
+    // Crear nueva evaluación
+    const newEvaluation = evaluationRepository.create({
+      user_id: value.user_id,
+      commission_id: value.commission_id,
+      guidline_id: value.guidline_id,
+      observation: value.observation || null,
+      question_asked: value.question_asked || null,
+      grade: value.grade || null,
+      status: value.status || 'pending'
+    });
+
+    const saved = await evaluationRepository.save(newEvaluation);
+    
+    res.status(201).json(saved);
+  } catch (error) {
+    console.error('Error creating evaluation:', error);
+    res.status(500).json({ error: 'Error al crear evaluación' });
   }
 });
 
@@ -97,8 +164,11 @@ router.get('/:id', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   try {
-    // Validar datos de entrada
-    const { error, value } = await updateEvaluationValidation.validate(req.body, { abortEarly: false });
+    // Validar datos de entrada (usar validateAsync por las reglas externas)
+    const { error, value } = await updateEvaluationValidation.validateAsync(req.body, { abortEarly: false }).then(
+      value => ({ error: null, value }),
+      error => ({ error, value: null })
+    );
     
     if (error) {
       return res.status(400).json({
@@ -131,6 +201,28 @@ router.put('/:id', async (req, res) => {
     if (value.guidline_id !== undefined) evaluation.guidline_id = value.guidline_id;
     
     const updated = await evaluationRepository.save(evaluation);
+
+    // Guardar los score_details si se proporcionan
+    if (value.scores && Array.isArray(value.scores) && value.scores.length > 0) {
+      const scoreRepository = AppDataSource.getRepository(score_detail);
+      
+      // Eliminar scores anteriores para esta evaluación
+      await scoreRepository
+        .createQueryBuilder()
+        .delete()
+        .where('evaluation_detail_id = :evalId', { evalId: id })
+        .execute();
+      
+      // Crear nuevos scores
+      const scoresToSave = value.scores.map(score => ({
+        criterion_id: score.criterion_id,
+        actual_score: score.actual_score,
+        evaluation_detail_id: parseInt(id)
+      }));
+      
+      await scoreRepository.save(scoresToSave);
+      console.log('Scores guardados:', scoresToSave);
+    }
     
     res.json(updated);
   } catch (error) {

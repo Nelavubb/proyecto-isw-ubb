@@ -12,10 +12,62 @@ const generatePassword = (rut: string): string => {
     return rutNumbers.slice(-6);
 };
 
-// Función de validación
+// Función de validación del nombre
+const validateUserName = (name: string): string | null => {
+    // Verificar que no esté vacío
+    if (!name || name.trim().length === 0) {
+        return 'El nombre de usuario es obligatorio';
+    }
+
+    // Verificar que no sea solo espacios
+    if (name.trim().length === 0) {
+        return 'El nombre no puede ser solo espacios';
+    }
+
+    // Verificar longitud mínima y máxima
+    if (name.trim().length < 2) {
+        return 'El nombre debe tener al menos 2 caracteres';
+    }
+    if (name.length > 100) {
+        return 'El nombre no puede exceder 100 caracteres';
+    }
+
+    // Verificar que no contenga números
+    if (/\d/.test(name)) {
+        return 'El nombre no puede contener números';
+    }
+
+    // Verificar que solo contenga letras, espacios y tildes en vocales (y ñ)
+    // No permite caracteres especiales
+    if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(name)) {
+        return 'El nombre solo puede contener letras y espacios. Solo se permiten tildes en vocales';
+    }
+
+    // Verificar que tenga al menos un espacio (nombre y apellido)
+    if (!/\s/.test(name.trim())) {
+        return 'El nombre debe incluir al menos un espacio (nombre y apellido)';
+    }
+
+    // Verificar que no sea solo una letra repetida (ej: "qqqq qqqq")
+    const cleanName = name.replace(/\s/g, '').toLowerCase();
+    if (cleanName.length > 0 && new Set(cleanName).size === 1) {
+        return 'El nombre no puede ser solo una letra repetida';
+    }
+
+    // Verificar que cada palabra tenga al menos 2 caracteres
+    const words = name.trim().split(/\s+/);
+    for (const word of words) {
+        if (word.length < 2) {
+            return 'Cada palabra del nombre debe tener al menos 2 caracteres';
+        }
+    }
+
+    return null;
+};
+
+// Función de validación general
 const validateUserData = (data: { rut: string; user_name: string; role: string }): string | null => {
     if (!data.rut) return 'El RUT es obligatorio';
-    if (!data.user_name) return 'El nombre de usuario es obligatorio';
     if (!data.role) return 'El rol es obligatorio';
 
     // Validar formato del RUT (XXX-X)
@@ -23,9 +75,9 @@ const validateUserData = (data: { rut: string; user_name: string; role: string }
         return 'El RUT debe tener el formato: solo números, un guion y el dígito verificador (número o k/K)';
     }
 
-    // Validar nombre
-    if (data.user_name.length < 2) return 'El nombre debe tener al menos 2 caracteres';
-    if (data.user_name.length > 100) return 'El nombre no puede exceder 100 caracteres';
+    // Validar nombre con la función especializada
+    const nameError = validateUserName(data.user_name);
+    if (nameError) return nameError;
 
     // Validar rol
     if (!['Estudiante', 'Profesor', 'Administrador'].includes(data.role)) {
