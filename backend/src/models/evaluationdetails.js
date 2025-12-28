@@ -41,8 +41,9 @@ export const Evaluation_detail = new EntitySchema({
         status: {
             type: 'varchar',
             length: 20,
-            nullable: false,
+            enum: ['pending', 'completed'],
             default: 'pending',
+            nullable: false,
         },
     },
     relations: {
