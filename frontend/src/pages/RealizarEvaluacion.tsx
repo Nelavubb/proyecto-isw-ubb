@@ -486,6 +486,23 @@ export default function RealizacionEvaluacion() {
       const totalScore = criteria.reduce((sum, c) => sum + (c.score || 0), 0);
       const calculatedGrade = calculateFinalGrade(totalScore, maxTotal);
 
+      // Preparar los scores para enviar
+      const scores = criteria
+        .filter(c => c.score !== null)
+        .map(c => ({
+          criterion_id: c.criterion_id,
+          actual_score: c.score as number
+        }));
+
+      // Primero guardar todos los datos
+      await updateEvaluation(evaluacionSeleccionada.evaluation_detail_id, {
+        grade: parseFloat(calculatedGrade.toFixed(2)),
+        observation: feedback || undefined,
+        question_asked: currentQuestion?.text || undefined,
+        scores: scores.length > 0 ? scores : undefined
+      });
+
+      // Luego marcar como completada
       await completeEvaluation(evaluacionSeleccionada.evaluation_detail_id);
 
       setCompleted(true);

@@ -110,3 +110,38 @@ export const completeEvaluation = async (evaluationDetailId: number): Promise<Ev
     throw error;
   }
 };
+
+// Interfaz para los resultados de evaluación por comisión
+export interface CommissionResult {
+  evaluation_detail_id: number;
+  student: {
+    user_id: number;
+    user_name: string;
+    rut: string;
+  } | null;
+  grade: number | null;
+  observation: string | null;
+  question_asked: string | null;
+  status: string;
+  scores: Array<{
+    criterion_id: number;
+    criterion_name: string;
+    max_score: number;
+    actual_score: number;
+  }>;
+}
+
+/**
+ * Obtiene los resultados de evaluación de todos los estudiantes de una comisión
+ * @param commissionId ID de la comisión
+ * @returns Promesa que resuelve a un array de resultados
+ */
+export const getCommissionResults = async (commissionId: number): Promise<CommissionResult[]> => {
+  try {
+    const response = await apiClient.get<CommissionResult[]>(`/evaluation-details/by-commission/${commissionId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching commission results:', error);
+    throw error;
+  }
+};

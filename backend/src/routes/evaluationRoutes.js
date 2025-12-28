@@ -2,9 +2,71 @@ import express from 'express';
 import { AppDataSource } from '../config/database.js';
 import { Evaluation_detail } from '../models/evaluationdetails.js';
 import { score_detail } from '../models/scoredetail.js';
+import { User } from '../models/User.js';
+import { Criterion } from '../models/criterion.js';
 import { createEvaluationValidation, updateEvaluationValidation } from '../validations/evaluationValidation.js';
 
 const router = express.Router();
+
+/**
+ * GET /api/evaluation-details/by-commission/:commissionId
+ * Obtiene los resultados de evaluación de todos los estudiantes de una comisión
+ */
+router.get('/by-commission/:commissionId', async (req, res) => {
+  try {
+    const { commissionId } = req.params;
+    const evaluationRepository = AppDataSource.getRepository(Evaluation_detail);
+    const scoreDetailRepository = AppDataSource.getRepository(score_detail);
+    const userRepository = AppDataSource.getRepository(User);
+    
+    // Obtener todas las evaluaciones de esta comisión
+    const evaluations = await evaluationRepository
+      .createQueryBuilder('ed')
+      .where('ed.commission_id = :commissionId', { commissionId })
+      .leftJoinAndSelect('ed.guidline', 'guidline')
+      .getMany();
+    
+    // Para cada evaluación, obtener los datos del estudiante y sus puntajes
+    const results = await Promise.all(evaluations.map(async (evaluation) => {
+      // Obtener datos del estudiante
+      const student = await userRepository.findOne({
+        where: { user_id: evaluation.user_id },
+        select: ['user_id', 'user_name', 'rut']
+      });
+      
+      // Obtener los score_details de esta evaluación
+      const scores = await scoreDetailRepository
+        .createQueryBuilder('sd')
+        .where('sd.evaluation_detail_id = :evalId', { evalId: evaluation.evaluation_detail_id })
+        .leftJoinAndSelect('sd.criterion', 'criterion')
+        .getMany();
+      
+      return {
+        evaluation_detail_id: evaluation.evaluation_detail_id,
+        student: student ? {
+          user_id: student.user_id,
+          user_name: student.user_name,
+          rut: student.rut
+        } : null,
+        grade: evaluation.grade,
+        observation: evaluation.observation,
+        question_asked: evaluation.question_asked,
+        status: evaluation.status,
+        scores: scores.map(s => ({
+          criterion_id: s.criterion_id,
+          criterion_name: s.criterion?.description || 'Sin nombre',
+          max_score: s.criterion?.scor_max || 0,
+          actual_score: s.actual_score
+        }))
+      };
+    }));
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching commission results:', error);
+    res.status(500).json({ error: 'Error al obtener resultados de la comisión' });
+  }
+});
 
 /**
  * GET /api/evaluation-details/pending
