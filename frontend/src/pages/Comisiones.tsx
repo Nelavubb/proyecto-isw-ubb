@@ -57,7 +57,7 @@ interface Evaluacion {
     totalEstudiantes: number;
 }
 
-// Los datos ahora se cargan desde el backend
+// Los datos se cargan desde el backend
 
 export default function Comisiones() {
     const navigate = useNavigate();

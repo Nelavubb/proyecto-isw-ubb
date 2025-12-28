@@ -60,19 +60,22 @@ export default function AddGuidelines() {
 
     useEffect(() => {
         loadTemas();
-        if (guidelineId) {
-            loadGuideline();
-        }
-    }, [guidelineId]);
+    }, []);
 
     useEffect(() => {
-        if (themeId && temas.length > 0) {
+        if (guidelineId && temas.length > 0) {
+            loadGuideline();
+        }
+    }, [guidelineId, temas]);
+
+    useEffect(() => {
+        if (themeId && temas.length > 0 && !editingGuideline) {
             const tema = temas.find(t => t.theme_id === parseInt(themeId));
             if (tema) {
                 setTemaSeleccionado(tema);
             }
         }
-    }, [themeId, temas]);
+    }, [themeId, temas, editingGuideline]);
 
     useEffect(() => {
         // Auto-generar nombre de pauta cuando se selecciona un tema
@@ -100,10 +103,16 @@ export default function AddGuidelines() {
             setLoading(true);
             const data = await getGuidelineById(parseInt(guidelineId!));
             setEditingGuideline(data);
+            
+            const criteriaData = data.description || [{ description: '', scor_max: 0 }];
             setGuidelineForm({
                 name: data.name,
-                description: data.description || [{ description: '', scor_max: 0 }]
+                description: criteriaData
             });
+            
+            // Inicializar contadores de caracteres para criterios existentes
+            setCriterionCharCounts(criteriaData.map((c: any) => c.description?.length || 0));
+            setCriterionErrors(criteriaData.map(() => ''));
 
             const tema = temas.find(t => t.theme_id === data.theme_id);
             if (tema) {
@@ -216,9 +225,19 @@ export default function AddGuidelines() {
                 }
             }
 
+            // Proceder a guardar
+            await saveGuidelineData();
+        } catch (error) {
+            console.error('Error al guardar pauta:', error);
+            alert('Error al guardar la pauta');
+        }
+    };
+
+    const saveGuidelineData = async () => {
+        try {
             const payload = {
                 name: guidelineForm.name,
-                theme_id: temaSeleccionado.theme_id,
+                theme_id: temaSeleccionado!.theme_id,
                 description: guidelineForm.description
             };
 
@@ -449,7 +468,7 @@ export default function AddGuidelines() {
                 </div>
             )}
 
-            <BottomNavigation />
+<BottomNavigation />
         </div>
     );
 }

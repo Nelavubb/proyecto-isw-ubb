@@ -54,3 +54,8 @@ export const updateGuideline = async (
 export const deleteGuideline = async (id: number): Promise<void> => {
     await api.delete(`/guidelines/${id}`);
 };
+
+export const checkGuidelineHasEvaluations = async (id: number): Promise<{ hasEvaluations: boolean; count: number }> => {
+    const response = await api.get(`/guidelines/${id}/has-evaluations`);
+    return response.data;
+};

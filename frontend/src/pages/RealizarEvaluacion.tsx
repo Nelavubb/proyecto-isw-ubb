@@ -5,6 +5,7 @@ import BottomNavigation from '../components/BottomNavigation';
 import { getEvaluationsPending, updateEvaluation, completeEvaluation, createEvaluation, EvaluationDetail } from '../services/evaluationService';
 import { getAllQuestions } from '../services/questionService';
 import { getGuidelinesByTheme } from '../services/guidelineService';
+import { getCommissionById, Estudiante, Commission, EvaluacionResumen } from '../services/commissionService';
 
 type Question = { id: string; text: string; topic: string };
 
@@ -41,6 +42,11 @@ type EvaluacionPendiente = EvaluationDetail & {
   }>;
 };
 
+type EstudianteConEstado = Estudiante & {
+  evaluation_status?: string;
+  evaluation_detail_id?: number;
+};
+
 export default function RealizacionEvaluacion() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -55,6 +61,13 @@ export default function RealizacionEvaluacion() {
   const [evaluacionSeleccionada, setEvaluacionSeleccionada] = useState<EvaluacionPendiente | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingGuideline, setLoadingGuideline] = useState(false);
+
+  // Estados para selector de estudiantes
+  const [estudiantes, setEstudiantes] = useState<EstudianteConEstado[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+  const [showStudentSelector, setShowStudentSelector] = useState(true);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [commissionData, setCommissionData] = useState<Commission | null>(null);
 
   // Estados de evaluación
   const [criteria, setCriteria] = useState<Criterion[]>([]);
@@ -72,31 +85,83 @@ export default function RealizacionEvaluacion() {
 
   // Cargar datos al montar el componente
   useEffect(() => {
-    loadData();
-  }, [evaluationDetailId, commissionId, themeId, userId]);
+    loadInitialData();
+  }, [commissionId, themeId]);
 
-  const loadData = async () => {
+  // Cargar estudiantes de la comisión
+  const loadInitialData = async () => {
     try {
       setLoading(true);
       
       // Validar que tengamos los parámetros necesarios
-      if (!themeId || (!evaluationDetailId && !commissionId)) {
+      if (!themeId || !commissionId) {
         setToast({ type: 'error', text: 'Parámetros inválidos. Por favor, vuelve a Comisiones.' });
         setTimeout(() => navigate('/comisiones'), 2000);
         return;
       }
 
-      // Validar que tengamos el user_id del estudiante
-      if (!userId && !evaluationDetailId) {
-        setToast({ type: 'error', text: 'No se especificó el estudiante a evaluar.' });
-        setTimeout(() => navigate('/comisiones'), 2000);
-        return;
+      // Cargar datos de la comisión (incluye estudiantes y evaluaciones)
+      const commission = await getCommissionById(parseInt(commissionId));
+      setCommissionData(commission);
+
+      // Mapear estudiantes con su estado de evaluación
+      const estudiantesConEstado: EstudianteConEstado[] = (commission.estudiantes || []).map((est: Estudiante) => {
+        const evaluacion = commission.evaluaciones?.find((ev: EvaluacionResumen) => ev.user_id === est.user_id);
+        return {
+          ...est,
+          evaluation_status: evaluacion?.status || 'pending',
+          evaluation_detail_id: evaluacion?.evaluation_detail_id
+        };
+      });
+
+      // Ordenar: primero los pendientes, después los completados
+      const ordenados = estudiantesConEstado.sort((a, b) => {
+        if (a.evaluation_status === 'completed' && b.evaluation_status !== 'completed') return 1;
+        if (a.evaluation_status !== 'completed' && b.evaluation_status === 'completed') return -1;
+        return 0;
+      });
+
+      setEstudiantes(ordenados);
+
+      // Cargar banco de preguntas
+      try {
+        const allQuestions = await getAllQuestions(1000);
+        setQuestionBank(allQuestions.map(q => ({
+          id: String(q.id_question),
+          text: q.question_text,
+          topic: q.theme_id ? String(q.theme_id) : 'Unknown'
+        })));
+      } catch (error) {
+        console.warn('No se pudieron cargar las preguntas:', error);
       }
 
-      // Cargar la pauta primero para obtener el guidline_id
+    } catch (error) {
+      console.error('Error al cargar datos:', error);
+      setToast({ type: 'error', text: 'Error al cargar la comisión' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Cargar evaluación cuando se selecciona un estudiante
+  const loadStudentEvaluation = async (studentId: number) => {
+    try {
+      setLoadingStudents(true);
+      setShowStudentSelector(false);
+      setSelectedStudentId(studentId);
+
+      // Resetear estados de evaluación anterior
+      setCriteria([]);
+      setCurrentQuestion(null);
+      setFeedback('');
+      setFeedbackCharCount(0);
+      setCompleted(false);
+      setSaved(false);
+
+      // Cargar la pauta para obtener el guidline_id
       let guidelineData: any = null;
       try {
-        const guidelines = await getGuidelinesByTheme(parseInt(themeId));
+        const guidelines = await getGuidelinesByTheme(parseInt(themeId!));
         if (guidelines && guidelines.length > 0) {
           guidelineData = guidelines[0];
         }
@@ -107,43 +172,35 @@ export default function RealizacionEvaluacion() {
       // Cargar las evaluaciones pendientes
       const evaluaciones = await getEvaluationsPending();
       
-      // Buscar la evaluación por evaluation_detail_id o commission_id
-      let evalBase;
-      if (evaluationDetailId) {
-        evalBase = evaluaciones.find(e => e.evaluation_detail_id === parseInt(evaluationDetailId));
-      } else if (commissionId && userId) {
-        // Buscar evaluación pendiente para este estudiante específico en esta comisión
-        const userIdNum = parseInt(userId);
-        evalBase = evaluaciones.find(e => 
-          e.commission_id === parseInt(commissionId) && e.user_id === userIdNum
-        );
-        
-        // Si no hay evaluación pendiente para este estudiante, crear una
-        if (!evalBase && guidelineData) {
-          try {
-            console.log('Creando nueva evaluación para estudiante ID:', userIdNum);
-            const newEvaluation = await createEvaluation({
-              user_id: userIdNum,
-              commission_id: parseInt(commissionId),
-              guidline_id: guidelineData.guidline_id,
-              status: 'pending'
-            });
-            console.log('Evaluación creada:', newEvaluation);
-            evalBase = newEvaluation;
-          } catch (error) {
-            console.error('Error creando evaluación:', error);
-            setToast({ type: 'error', text: 'Error al preparar la evaluación.' });
-            setTimeout(() => navigate('/comisiones'), 3000);
-            return;
-          }
+      // Buscar evaluación para este estudiante específico en esta comisión
+      let evalBase = evaluaciones.find(e => 
+        e.commission_id === parseInt(commissionId!) && e.user_id === studentId
+      );
+      
+      // Si no hay evaluación pendiente para este estudiante, crear una
+      if (!evalBase && guidelineData) {
+        try {
+          console.log('Creando nueva evaluación para estudiante ID:', studentId);
+          const newEvaluation = await createEvaluation({
+            user_id: studentId,
+            commission_id: parseInt(commissionId!),
+            guidline_id: guidelineData.guidline_id,
+            status: 'pending'
+          });
+          console.log('Evaluación creada:', newEvaluation);
+          evalBase = newEvaluation;
+        } catch (error) {
+          console.error('Error creando evaluación:', error);
+          setToast({ type: 'error', text: 'Error al preparar la evaluación.' });
+          setShowStudentSelector(true);
+          return;
         }
       }
 
       if (!evalBase) {
-        console.warn('No se encontró evaluación pendiente. Evaluaciones disponibles:', evaluaciones);
-        console.warn('Buscando commission_id:', commissionId, 'evaluation_detail_id:', evaluationDetailId, 'user_id:', userId);
-        setToast({ type: 'error', text: 'No hay evaluaciones pendientes para esta comisión. Verifique que los estudiantes estén asignados correctamente.' });
-        setTimeout(() => navigate('/comisiones'), 3000);
+        console.warn('No se encontró evaluación pendiente para estudiante:', studentId);
+        setToast({ type: 'error', text: 'No se pudo cargar la evaluación para este estudiante.' });
+        setShowStudentSelector(true);
         return;
       }
 
@@ -174,6 +231,23 @@ export default function RealizacionEvaluacion() {
         console.warn('No se pudo cargar la pauta:', error);
       } finally {
         setLoadingGuideline(false);
+      }
+
+      // Agregar información del estudiante
+      const estudianteInfo = estudiantes.find(e => e.user_id === studentId);
+      if (estudianteInfo) {
+        evaluation.user = {
+          user_id: estudianteInfo.user_id,
+          user_name: estudianteInfo.user_name
+        };
+      }
+
+      // Agregar información de la comisión
+      if (commissionData) {
+        evaluation.commission = {
+          commission_id: commissionData.commission_id,
+          commission_name: commissionData.commission_name
+        };
       }
 
       setEvaluacionSeleccionada(evaluation);
@@ -212,25 +286,23 @@ export default function RealizacionEvaluacion() {
         });
       }
 
-      // Cargar banco de preguntas
-      try {
-        const allQuestions = await getAllQuestions(1000);
-        setQuestionBank(allQuestions.map(q => ({
-          id: String(q.id_question),
-          text: q.question_text,
-          topic: q.theme_id ? String(q.theme_id) : 'Unknown'
-        })));
-      } catch (error) {
-        console.warn('No se pudieron cargar las preguntas:', error);
-      }
     } catch (error) {
       console.error('Error al cargar datos:', error);
       setToast({ type: 'error', text: 'Error al cargar la evaluación' });
+      setShowStudentSelector(true);
     } finally {
-      setLoading(false);
+      setLoadingStudents(false);
     }
   };
 
+  // Volver al selector de estudiantes después de registrar evaluación
+  const handleBackToStudentSelector = async () => {
+    // Recargar datos para actualizar estados de evaluación
+    await loadInitialData();
+    setShowStudentSelector(true);
+    setEvaluacionSeleccionada(null);
+    setSelectedStudentId(null);
+  };
   const partialTotal = useMemo(() => {
     return criteria.reduce((sum, c) => sum + (c.score ?? 0), 0);
   }, [criteria]);
@@ -436,35 +508,169 @@ export default function RealizacionEvaluacion() {
 
           {/* Top Header Card */}
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
-            <h1 className="text-2xl font-bold text-[#003366] mb-2">Realización de Evaluación</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-bold text-[#003366] mb-2">Realización de Evaluación</h1>
+              <button
+                onClick={() => navigate('/comisiones')}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
-            {loading || loadingGuideline ? (
+            {loading ? (
               <div className="text-center py-8">
-                <p className="text-gray-500">Cargando evaluación...</p>
+                <p className="text-gray-500">Cargando datos de la comisión...</p>
               </div>
-            ) : evaluacionSeleccionada ? (
+            ) : commissionData ? (
               <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-gray-600 mt-4 pt-4 border-t border-gray-200">
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wide">Comisión</p>
-                  <p className="font-bold text-gray-900">{evaluacionSeleccionada.commission?.commission_name || `#${evaluacionSeleccionada.commission_id}`}</p>
+                  <p className="font-bold text-gray-900">{commissionData.commission_name}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wide">Tema</p>
-                  <p className="font-bold text-gray-900">{evaluacionSeleccionada.guidline?.theme?.theme_name || 'No asignado'}</p>
+                  <p className="font-bold text-gray-900">{commissionData.theme?.theme_name || 'No asignado'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide">Estudiante</p>
-                  <p className="font-bold text-gray-900">{evaluacionSeleccionada.user?.user_name || `#${evaluacionSeleccionada.user_id}`}</p>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Total Estudiantes</p>
+                  <p className="font-bold text-gray-900">{estudiantes.length}</p>
                 </div>
               </div>
             ) : (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm mt-4">
-                No se pudo cargar la evaluación. Por favor, vuelve a Comisiones e intenta de nuevo.
+                No se pudo cargar la información de la comisión.
               </div>
             )}
           </div>
 
-          {evaluacionSeleccionada && (
+          {/* Selector de estudiantes */}
+          {showStudentSelector && !loading && (
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+              <h2 className="text-lg font-bold text-[#003366] mb-4">Seleccionar Estudiante a Evaluar</h2>
+              
+              {estudiantes.length === 0 ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-700 text-sm">
+                  No hay estudiantes asignados a esta comisión.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {estudiantes.map((estudiante) => {
+                    const isCompleted = estudiante.evaluation_status === 'completed';
+                    return (
+                      <div
+                        key={estudiante.user_id}
+                        onClick={() => !isCompleted && loadStudentEvaluation(estudiante.user_id)}
+                        className={`p-4 rounded-lg border transition-all ${
+                          isCompleted 
+                            ? 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-60' 
+                            : 'bg-white border-gray-200 hover:border-[#003366] hover:shadow-md cursor-pointer'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                              isCompleted ? 'bg-green-100' : 'bg-blue-100'
+                            }`}>
+                              {isCompleted ? (
+                                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : (
+                                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{estudiante.user_name}</p>
+                              <p className="text-sm text-gray-500">{estudiante.rut}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-3 py-1 text-xs font-bold rounded-full ${
+                              isCompleted 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {isCompleted ? 'Evaluado' : 'Pendiente'}
+                            </span>
+                            {!isCompleted && (
+                              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Resumen de progreso */}
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Progreso de evaluaciones:</span>
+                  <span className="font-bold text-[#003366]">
+                    {estudiantes.filter(e => e.evaluation_status === 'completed').length} / {estudiantes.length} completadas
+                  </span>
+                </div>
+                <div className="mt-2 bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-green-500 h-2 rounded-full transition-all"
+                    style={{ 
+                      width: `${estudiantes.length > 0 
+                        ? (estudiantes.filter(e => e.evaluation_status === 'completed').length / estudiantes.length) * 100 
+                        : 0}%` 
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Loading estudiante */}
+          {loadingStudents && (
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100 text-center py-12">
+              <p className="text-gray-500">Cargando evaluación del estudiante...</p>
+            </div>
+          )}
+
+          {/* Contenido de evaluación (mostrar solo cuando hay estudiante seleccionado) */}
+          {!showStudentSelector && !loadingStudents && evaluacionSeleccionada && (
+            <>
+              {/* Info del estudiante seleccionado */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-bold text-blue-900">Evaluando a: {evaluacionSeleccionada.user?.user_name}</p>
+                      <p className="text-sm text-blue-700">ID Evaluación: #{evaluacionSeleccionada.evaluation_detail_id}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowStudentSelector(true)}
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Cambiar estudiante
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {!showStudentSelector && !loadingStudents && evaluacionSeleccionada && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
               {/* Left Column */}
@@ -648,14 +854,16 @@ export default function RealizacionEvaluacion() {
 
                     <div className="flex gap-3">
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           if (!completed) {
                             setToast({ type: 'error', text: 'Finalice la evaluación antes de registrar la retroalimentación.' });
                             setTimeout(() => setToast(null), 2500);
                             return;
                           }
-                          setToast({ type: 'success', text: 'Retroalimentación registrada.' });
+                          setToast({ type: 'success', text: 'Retroalimentación registrada. Seleccione otro estudiante.' });
                           setTimeout(() => setToast(null), 2500);
+                          // Volver al selector de estudiantes
+                          await handleBackToStudentSelector();
                         }}
                         disabled={!completed}
                         className="flex-1 px-4 py-2 bg-[#E67E22] text-white font-bold rounded-lg hover:bg-[#D35400] transition shadow-sm flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -663,10 +871,10 @@ export default function RealizacionEvaluacion() {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                         </svg>
-                        Registrar retroalimentación
+                        Registrar evaluación
                       </button>
                       <button
-                        onClick={() => completed ? navigate('/comisiones') : setShowExitModal(true)}
+                        onClick={() => completed ? handleBackToStudentSelector() : setShowExitModal(true)}
                         className="px-4 py-2 bg-gray-500 text-white font-bold rounded-lg hover:bg-gray-600 transition shadow-sm flex items-center justify-center gap-2 text-sm"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

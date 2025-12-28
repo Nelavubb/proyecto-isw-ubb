@@ -7,6 +7,13 @@ export interface Estudiante {
     role?: string;
 }
 
+export interface EvaluacionResumen {
+    evaluation_detail_id: number;
+    user_id: number;
+    commission_id: number;
+    status: string;
+}
+
 export interface Commission {
     commission_id: number;
     commission_name: string;
@@ -21,6 +28,7 @@ export interface Commission {
         theme_name: string;
     };
     estudiantes?: Estudiante[];
+    evaluaciones?: EvaluacionResumen[];
     totalEstudiantes?: number;
 }
 
