@@ -2,6 +2,11 @@ import express from 'express';
 import { AppDataSource } from '../config/database.js';
 import { Commission } from '../models/commission.js';
 import { Evaluation_detail } from '../models/evaluationdetails.js';
+import { 
+    createCommissionValidation, 
+    updateCommissionValidation, 
+    idParamValidation 
+} from '../validations/commissionValidation.js';
 
 const router = express.Router();
 
@@ -197,6 +202,17 @@ router.get('/by-theme/:themeId', async (req, res) => {
  * Crea una nueva comisión con estudiantes asignados
  */
 router.post('/', async (req, res) => {
+    // Validar con Joi primero
+    const { error: validationError, value: validatedData } = createCommissionValidation.validate(req.body, { abortEarly: false });
+    
+    if (validationError) {
+        const errores = validationError.details.map(d => d.message);
+        return res.status(400).json({ 
+            error: 'Error de validación',
+            details: errores.join(', ')
+        });
+    }
+
     // Usar transacción para evitar comisiones huérfanas si hay error
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
@@ -213,23 +229,77 @@ router.post('/', async (req, res) => {
             location,
             evaluation_group, // identificador de grupo de evaluación
             estudiantes // array de user_ids de estudiantes
-        } = req.body;
+        } = validatedData;
 
-        console.log('Datos recibidos:', req.body);
+        console.log('Datos recibidos:', validatedData);
 
-        // Validaciones
-        if (!commission_name || !user_id || !theme_id || !date || !time || !location || !evaluation_group) {
+        // Validar que el tema exista
+        const themeRepository = queryRunner.manager.getRepository('theme');
+        const theme = await themeRepository.findOne({ where: { theme_id: parseInt(theme_id) } });
+        if (!theme) {
             await queryRunner.rollbackTransaction();
             return res.status(400).json({ 
-                error: 'Faltan campos requeridos: commission_name, user_id, theme_id, date, time, location, evaluation_group' 
+                error: 'Tema no encontrado',
+                details: `No existe un tema con ID ${theme_id}`
             });
+        }
+
+        // Validar que el profesor exista
+        const userRepository = queryRunner.manager.getRepository('user');
+        const profesor = await userRepository.findOne({ where: { user_id: parseInt(user_id) } });
+        if (!profesor) {
+            await queryRunner.rollbackTransaction();
+            return res.status(400).json({ 
+                error: 'Usuario no encontrado',
+                details: `No existe un usuario con ID ${user_id}`
+            });
+        }
+
+        // Validar estudiantes si se proporcionan
+        if (estudiantes && estudiantes.length > 0) {
+            // Verificar que todos los estudiantes existan
+            for (const studentId of estudiantes) {
+                const estudiante = await userRepository.findOne({ where: { user_id: parseInt(studentId) } });
+                if (!estudiante) {
+                    await queryRunner.rollbackTransaction();
+                    return res.status(400).json({ 
+                        error: 'Estudiante no encontrado',
+                        details: `No existe un estudiante con ID ${studentId}`
+                    });
+                }
+            }
+
+            // Verificar que no haya estudiantes duplicados en la misma evaluación
+            const existingCommissions = await queryRunner.manager
+                .createQueryBuilder(Commission, 'c')
+                .where('c.evaluation_group = :evalGroup', { evalGroup: evaluation_group })
+                .getMany();
+
+            if (existingCommissions.length > 0) {
+                const commissionIds = existingCommissions.map(c => c.commission_id);
+                const existingDetails = await queryRunner.manager
+                    .createQueryBuilder(Evaluation_detail, 'ed')
+                    .where('ed.commission_id IN (:...commissionIds)', { commissionIds })
+                    .getMany();
+                
+                const existingStudentIds = existingDetails.map(ed => ed.user_id);
+                const duplicados = estudiantes.filter(id => existingStudentIds.includes(id));
+                
+                if (duplicados.length > 0) {
+                    await queryRunner.rollbackTransaction();
+                    return res.status(400).json({ 
+                        error: 'Estudiantes duplicados',
+                        details: `Los siguientes estudiantes ya están asignados a otra comisión de esta evaluación: ${duplicados.join(', ')}`
+                    });
+                }
+            }
         }
 
         // Crear la comisión
         const newCommission = queryRunner.manager.create(Commission, {
             commission_name,
-            user_id,
-            theme_id,
+            user_id: parseInt(user_id),
+            theme_id: parseInt(theme_id),
             date,
             time,
             location,
@@ -244,13 +314,13 @@ router.post('/', async (req, res) => {
         if (estudiantes && estudiantes.length > 0) {
             for (const studentId of estudiantes) {
                 const evaluationData = {
-                    user_id: studentId,
+                    user_id: parseInt(studentId),
                     commission_id: savedCommission.commission_id,
                     status: 'pending'
                 };
                 // Solo agregar guidline_id si existe
                 if (guideline_id) {
-                    evaluationData.guidline_id = guideline_id;
+                    evaluationData.guidline_id = parseInt(guideline_id);
                 }
                 console.log('Creando evaluation_detail:', evaluationData);
                 
@@ -278,6 +348,25 @@ router.post('/', async (req, res) => {
  * Actualiza una comisión existente y sus estudiantes
  */
 router.put('/:id', async (req, res) => {
+    // Validar parámetro ID
+    const { error: idError } = idParamValidation.validate({ id: parseInt(req.params.id) });
+    if (idError) {
+        return res.status(400).json({ 
+            error: 'ID inválido', 
+            details: idError.details[0].message 
+        });
+    }
+
+    // Validar body con Joi
+    const { error: validationError, value: validatedData } = updateCommissionValidation.validate(req.body, { abortEarly: false });
+    if (validationError) {
+        const errores = validationError.details.map(d => d.message);
+        return res.status(400).json({ 
+            error: 'Error de validación',
+            details: errores.join(', ')
+        });
+    }
+
     // Usar transacción para evitar pérdida de datos si hay error
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
@@ -285,7 +374,7 @@ router.put('/:id', async (req, res) => {
     
     try {
         const { id } = req.params;
-        const { commission_name, date, time, location, estudiantes } = req.body;
+        const { commission_name, date, time, location, estudiantes } = validatedData;
 
         console.log('PUT /api/commissions/:id - ID recibido:', id, 'tipo:', typeof id);
 
@@ -298,6 +387,49 @@ router.put('/:id', async (req, res) => {
         if (!commission) {
             await queryRunner.rollbackTransaction();
             return res.status(404).json({ error: 'Comisión no encontrada', details: `No se encontró comisión con ID: ${id}` });
+        }
+
+        // Validar estudiantes si se proporcionan
+        if (estudiantes && Array.isArray(estudiantes)) {
+            const userRepository = queryRunner.manager.getRepository('user');
+            
+            // Verificar que todos los estudiantes existan
+            for (const studentId of estudiantes) {
+                const estudiante = await userRepository.findOne({ where: { user_id: parseInt(studentId) } });
+                if (!estudiante) {
+                    await queryRunner.rollbackTransaction();
+                    return res.status(400).json({ 
+                        error: 'Estudiante no encontrado',
+                        details: `No existe un estudiante con ID ${studentId}`
+                    });
+                }
+            }
+
+            // Verificar que no haya estudiantes duplicados en otras comisiones del mismo grupo
+            const existingCommissions = await queryRunner.manager
+                .createQueryBuilder(Commission, 'c')
+                .where('c.evaluation_group = :evalGroup', { evalGroup: commission.evaluation_group })
+                .andWhere('c.commission_id != :currentId', { currentId: parseInt(id) })
+                .getMany();
+
+            if (existingCommissions.length > 0) {
+                const commissionIds = existingCommissions.map(c => c.commission_id);
+                const existingDetails = await queryRunner.manager
+                    .createQueryBuilder(Evaluation_detail, 'ed')
+                    .where('ed.commission_id IN (:...commissionIds)', { commissionIds })
+                    .getMany();
+                
+                const existingStudentIds = existingDetails.map(ed => ed.user_id);
+                const duplicados = estudiantes.filter(id => existingStudentIds.includes(parseInt(id)));
+                
+                if (duplicados.length > 0) {
+                    await queryRunner.rollbackTransaction();
+                    return res.status(400).json({ 
+                        error: 'Estudiantes duplicados',
+                        details: `Los siguientes estudiantes ya están asignados a otra comisión de esta evaluación: ${duplicados.join(', ')}`
+                    });
+                }
+            }
         }
 
         if (commission_name) commission.commission_name = commission_name;
@@ -320,7 +452,7 @@ router.put('/:id', async (req, res) => {
             // Crear nuevos evaluation_details para los estudiantes
             for (const studentId of estudiantes) {
                 const evaluationData = {
-                    user_id: studentId,
+                    user_id: parseInt(studentId),
                     commission_id: parseInt(id),
                     status: 'pending'
                 };
@@ -348,29 +480,66 @@ router.put('/:id', async (req, res) => {
  * Elimina una comisión y sus evaluaciones asociadas
  */
 router.delete('/:id', async (req, res) => {
+    // Validar parámetro ID
+    const { error: idError } = idParamValidation.validate({ id: parseInt(req.params.id) });
+    if (idError) {
+        return res.status(400).json({ 
+            error: 'ID inválido', 
+            details: idError.details[0].message 
+        });
+    }
+
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    
     try {
         const { id } = req.params;
 
+        // Verificar que la comisión exista
+        const commission = await queryRunner.manager.findOne(Commission, {
+            where: { commission_id: parseInt(id) }
+        });
+
+        if (!commission) {
+            await queryRunner.rollbackTransaction();
+            return res.status(404).json({ error: 'Comisión no encontrada', details: `No existe una comisión con ID ${id}` });
+        }
+
+        // Verificar si hay evaluaciones completadas en esta comisión
+        const completedEvaluations = await queryRunner.manager
+            .createQueryBuilder(Evaluation_detail, 'ed')
+            .where('ed.commission_id = :commissionId', { commissionId: parseInt(id) })
+            .andWhere('ed.status = :status', { status: 'completed' })
+            .getCount();
+
+        if (completedEvaluations > 0) {
+            await queryRunner.rollbackTransaction();
+            return res.status(400).json({ 
+                error: 'No se puede eliminar',
+                details: `Esta comisión tiene ${completedEvaluations} evaluación(es) completada(s). No se puede eliminar.`
+            });
+        }
+
         // Primero eliminar las evaluaciones asociadas
-        const evaluationRepository = AppDataSource.getRepository('Evaluation_detail');
-        await evaluationRepository
+        await queryRunner.manager
             .createQueryBuilder()
             .delete()
-            .where('commission_id = :id', { id })
+            .from(Evaluation_detail)
+            .where('commission_id = :id', { id: parseInt(id) })
             .execute();
 
         // Luego eliminar la comisión
-        const commissionRepository = AppDataSource.getRepository(Commission);
-        const result = await commissionRepository.delete(parseInt(id));
+        await queryRunner.manager.delete(Commission, { commission_id: parseInt(id) });
 
-        if (result.affected === 0) {
-            return res.status(404).json({ error: 'Comisión no encontrada' });
-        }
-
+        await queryRunner.commitTransaction();
         res.json({ message: 'Comisión eliminada correctamente' });
     } catch (error) {
+        await queryRunner.rollbackTransaction();
         console.error('Error deleting commission:', error);
-        res.status(500).json({ error: 'Error al eliminar comisión' });
+        res.status(500).json({ error: 'Error al eliminar comisión', details: error.message });
+    } finally {
+        await queryRunner.release();
     }
 });
 
