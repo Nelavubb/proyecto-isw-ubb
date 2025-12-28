@@ -1,3 +1,4 @@
+//#region IMPORTS
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
@@ -16,8 +17,9 @@ import {
     Estudiante as EstudianteAPI
 } from '../services/commissionService';
 import { useAuth } from '../hooks/useAuth';
+//#endregion
 
-// Interfaces para los datos
+//#region INTERFACES
 interface Tema {
     id: number;
     nombre: string;
@@ -58,9 +60,10 @@ interface Evaluacion {
     totalEstudiantes: number;
 }
 
-// Los datos ahora se cargan desde el backend
+//#endregion
 
 export default function Comisiones() {
+    //#region HOOKS Y ESTADOS
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { user } = useAuth();
@@ -166,7 +169,9 @@ export default function Comisiones() {
         loadComisiones();
         // Los estudiantes se cargan cuando se selecciona un tema
     }, []);
+    //#endregion
 
+    //#region FUNCIONES DE CARGA DE DATOS (load*)
     const loadComisiones = async () => {
         try {
             setLoadingEvaluaciones(true);
@@ -309,7 +314,9 @@ export default function Comisiones() {
             setLoadingEstudiantes(false);
         }
     };
+    //#endregion
 
+    //#region HANDLERS DE EVENTOS (handle*)
     const handleTemaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const temaId = parseInt(e.target.value);
         const tema = temas.find(t => t.id === temaId) || null;
@@ -619,7 +626,7 @@ export default function Comisiones() {
                             })) || [],
                             evaluada: false,
                         })),
-                        estado: 'programada',
+                        estado: 'pendiente',
                         fechaCreacion: primeraComision.date,
                         totalEstudiantes: comisionesDeEvaluacion.reduce(
                             (sum, c) => sum + (c.estudiantes?.length || 0), 0
@@ -691,7 +698,9 @@ export default function Comisiones() {
             });
         }
     };
+    //#endregion
 
+    //#region FUNCIONES AUXILIARES Y FILTROS
     // Obtener estudiantes ya asignados según el contexto (excluye la comisión en edición)
     const getEstudiantesYaAsignados = () => {
         if (modalContext === 'detalle' && evaluacionSeleccionada) {
@@ -741,8 +750,9 @@ export default function Comisiones() {
         const fechas = evaluacion.comisiones.map(c => c.fecha).sort();
         return formatDateShort(fechas[0]);
     };
+    //#endregion
 
-    // ==================== VISTA DE LISTA ====================
+    //#region VISTA DE LISTA
     if (vistaActual === 'lista') {
         return (
             <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -847,8 +857,9 @@ export default function Comisiones() {
             </div>
         );
     }
+    //#endregion
 
-    // ==================== VISTA DE DETALLE ====================
+    //#region VISTA DE DETALLE
     if (vistaActual === 'detalle' && evaluacionSeleccionada) {
         return (
             <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -939,7 +950,7 @@ export default function Comisiones() {
 
                         {/* Lista de Comisiones */}
                         <div className="grid gap-4">
-                            {evaluacionSeleccionada.comisiones.map((comision) => (
+                            {evaluacionSeleccionada.comisiones.map((comision, index) => (
                                 <div
                                     key={comision.id}
                                     className="bg-white rounded-lg shadow-sm border border-gray-100 p-5 hover:shadow-md transition"
@@ -950,7 +961,7 @@ export default function Comisiones() {
                                                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${comision.modalidad === 'presencial' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
                                                     {comision.modalidad === 'presencial' ? '📍 Presencial' : '💻 Online'}
                                                 </span>
-                                                <span className="text-sm text-gray-500">Comisión #{comision.id}</span>
+                                                <span className="text-sm text-gray-500">Comisión {index + 1}</span>
                                             </div>
 
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -1269,8 +1280,9 @@ export default function Comisiones() {
             </div>
         );
     }
+    //#endregion
 
-    // ==================== VISTA DE CREACIÓN ====================
+    //#region VISTA DE CREACIÓN
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col">
             <Header variant="default" title="Facultad de Derecho" />
@@ -1332,11 +1344,11 @@ export default function Comisiones() {
                     {/* Paneles de configuración (solo si hay tema seleccionado) */}
                     {temaSeleccionado && (
                         <>
-                            {/* Panel A: Configuración de Pauta */}
+                            {/* Panel 2: Configuración de Pauta */}
                             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
                                 <div className="flex items-center gap-3 mb-4">
-                                    <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#003366] text-white font-bold text-sm">A</span>
-                                    <h2 className="text-lg font-bold text-[#003366]">Configuración de Pauta (Guideline)</h2>
+                                    <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#003366] text-white font-bold text-sm">2</span>
+                                    <h2 className="text-lg font-bold text-[#003366]">Configuración de Pauta</h2>
                                 </div>
 
                                 <div className="space-y-4">
@@ -1389,12 +1401,12 @@ export default function Comisiones() {
                                 </div>
                             </div>
 
-                            {/* Panel B: Gestión de Comisiones */}
+                            {/* Panel 3: Gestión de Comisiones */}
                             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
                                 <div className="flex items-center justify-between mb-6">
                                     <div className="flex items-center gap-3">
-                                        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#003366] text-white font-bold text-sm">B</span>
-                                        <h2 className="text-lg font-bold text-[#003366]">Gestión de Comisiones (Logística)</h2>
+                                        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#003366] text-white font-bold text-sm">3</span>
+                                        <h2 className="text-lg font-bold text-[#003366]">Gestión de Comisiones</h2>
                                     </div>
                                     <button
                                         onClick={() => { setModalContext('crear'); setShowModal(true); }}
@@ -1418,13 +1430,14 @@ export default function Comisiones() {
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {comisiones.map((comision) => (
+                                        {comisiones.map((comision, index) => (
                                             <div
                                                 key={comision.id}
                                                 className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition bg-white"
                                             >
                                                 <div className="flex items-start justify-between mb-3">
                                                     <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-semibold text-gray-700">Comisión {index + 1}</span>
                                                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${comision.modalidad === 'presencial' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
                                                             {comision.modalidad === 'presencial' ? '📍 Presencial' : '💻 Online'}
                                                         </span>
@@ -1481,9 +1494,6 @@ export default function Comisiones() {
                                                             </svg>
                                                             <span className="text-sm text-gray-600">{comision.estudiantes.length} estudiantes</span>
                                                         </div>
-                                                        <button className="text-xs text-[#003366] hover:underline font-medium">
-                                                            Ver lista
-                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1498,9 +1508,6 @@ export default function Comisiones() {
                                     <div className="text-center sm:text-left">
                                         <p className="text-sm text-gray-600">
                                             <span className="font-semibold">{comisiones.length}</span> comisión(es) configurada(s) para este tema
-                                        </p>
-                                        <p className="text-xs text-gray-400 mt-1">
-                                            Los estudiantes recibirán una notificación por correo electrónico
                                         </p>
                                     </div>
                                     <div className="flex gap-3">
@@ -1716,4 +1723,5 @@ export default function Comisiones() {
             <BottomNavigation />
         </div>
     );
+    //#endregion
 }
