@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
             .orderBy('commission.date', 'DESC')
             .getMany();
 
-        // Enriquecer con estudiantes asignados
+        // Enriquecer con estudiantes asignados y sus estados
         const enrichedCommissions = await Promise.all(
             commissions.map(async (commission) => {
                 const evaluationRepository = AppDataSource.getRepository('Evaluation_detail');
@@ -43,17 +43,30 @@ router.get('/', async (req, res) => {
                 let students = [];
 
                 if (studentIds.length > 0) {
-                    students = await userRepository
+                    const usersData = await userRepository
                         .createQueryBuilder('user')
                         .where('user.user_id IN (:...studentIds)', { studentIds })
                         .select(['user.user_id', 'user.user_name', 'user.rut'])
                         .getMany();
+                    
+                    // Combinar datos de usuario con el status de evaluation_details
+                    students = usersData.map(user => {
+                        const evalDetail = evaluations.find(e => e.user_id === user.user_id);
+                        return {
+                            ...user,
+                            status: evalDetail?.status || 'pending'
+                        };
+                    });
                 }
+
+                // Calcular si la comisión está finalizada (todos los estudiantes evaluados)
+                const allEvaluated = students.length > 0 && students.every(s => s.status === 'completed');
 
                 return {
                     ...commission,
                     estudiantes: students,
-                    totalEstudiantes: students.length
+                    totalEstudiantes: students.length,
+                    finalizada: allEvaluated
                 };
             })
         );
