@@ -4,6 +4,7 @@ export interface Estudiante {
     user_id: number;
     user_name: string;
     rut: string;
+    role?: string;
 }
 
 export interface Commission {
