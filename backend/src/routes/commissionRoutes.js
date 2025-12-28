@@ -100,7 +100,7 @@ router.get('/:id', async (req, res) => {
             students = await userRepository
                 .createQueryBuilder('user')
                 .where('user.user_id IN (:...studentIds)', { studentIds })
-                .select(['user.user_id', 'user.user_name', 'user.rut'])
+                .select(['user.user_id', 'user.user_name', 'user.rut', 'user.role'])
                 .getMany();
         }
 
@@ -148,7 +148,7 @@ router.get('/by-theme/:themeId', async (req, res) => {
                     students = await userRepository
                         .createQueryBuilder('user')
                         .where('user.user_id IN (:...studentIds)', { studentIds })
-                        .select(['user.user_id', 'user.user_name', 'user.rut'])
+                        .select(['user.user_id', 'user.user_name', 'user.rut', 'user.role'])
                         .getMany();
                 }
 
