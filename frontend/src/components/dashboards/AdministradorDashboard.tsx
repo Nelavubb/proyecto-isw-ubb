@@ -113,7 +113,8 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
     try {
       await createSubject({
         subject_name: trimmedName,
-        user_id: Number(subjectFormData.user_id)
+        user_id: Number(subjectFormData.user_id),
+        term_id: 1 // Default term
       });
       setToast({ type: 'success', text: 'Asignatura creada exitosamente' });
       handleCloseSubjectModal();
