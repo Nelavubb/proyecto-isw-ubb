@@ -27,16 +27,16 @@ export const Student_Subject = new EntitySchema({
     },
     relations: {
         user: {
-            target: 'user',
-            type: 'many-to-many',
+            target: 'User',
+            type: 'many-to-one',
             joinColumn: {
                 name: 'user_id',
             },
             onDelete: 'RESTRICT',
         },
         subject: {
-            target: 'subject',
-            type: 'many-to-many',
+            target: 'Subject',
+            type: 'many-to-one',
             joinColumn: {
                 name: 'subject_id',
             },

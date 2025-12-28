@@ -73,7 +73,7 @@ router.post('/', async (req, res) => {
         // Validar datos de entrada
         await createSubjectValidation.validateAsync(req.body);
 
-        const { subject_name, user_id } = req.body;
+        const { subject_name, user_id, term_id } = req.body;
         const subjectRepository = AppDataSource.getRepository(Subject);
 
         // Verificar si ya existe
@@ -84,7 +84,8 @@ router.post('/', async (req, res) => {
 
         const newSubject = subjectRepository.create({
             subject_name,
-            user_id
+            user_id,
+            term_id
         });
 
         await subjectRepository.save(newSubject);
@@ -107,7 +108,7 @@ router.put('/:id', async (req, res) => {
         // Validar datos de entrada
         await updateSubjectValidation.validateAsync(req.body);
 
-        const { subject_name, user_id } = req.body;
+        const { subject_name, user_id, term_id } = req.body;
         const subjectRepository = AppDataSource.getRepository(Subject);
         const subject = await subjectRepository.findOne({ where: { subject_id: parseInt(id) } });
 
@@ -117,6 +118,7 @@ router.put('/:id', async (req, res) => {
 
         if (subject_name) subject.subject_name = subject_name;
         if (user_id) subject.user_id = user_id;
+        if (term_id) subject.term_id = term_id;
 
         await subjectRepository.save(subject);
         res.json(subject);
