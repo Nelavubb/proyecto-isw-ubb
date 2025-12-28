@@ -32,6 +32,7 @@ interface Estudiante {
     nombre: string;
     rut: string;
     email?: string;
+    role?: string;
 }
 
 interface Comision {
@@ -165,6 +166,7 @@ export default function Comisiones() {
                     id: e.user_id,
                     nombre: e.user_name,
                     rut: e.rut,
+                    role: e.role,
                 })) || [];
 
                 evaluacion.comisiones.push({
@@ -589,9 +591,10 @@ export default function Comisiones() {
                 });
                 setSearchEstudiante('');
                 alert(modoEdicion ? 'Comisión actualizada exitosamente' : 'Comisión agregada exitosamente');
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error al guardar comisión:', error);
-                alert('Error al guardar la comisión. Por favor, intente de nuevo.');
+                const errorMessage = error?.response?.data?.details || error?.response?.data?.error || error?.message || 'Error desconocido';
+                alert(`Error al guardar la comisión: ${errorMessage}`);
             }
         } else {
             // Contexto: creación de nueva evaluación (comisiones locales)
@@ -966,7 +969,15 @@ export default function Comisiones() {
                                             {!comision.evaluada ? (
                                                 <>
                                                     <button
-                                                        onClick={() => navigate(`/RealizarEvaluacion?evaluacionId=${evaluacionSeleccionada.id}&comisionId=${comision.id}`)}
+                                                        onClick={() => {
+                                                            // Buscar el primer estudiante con rol "estudiante"
+                                                            const estudianteValido = comision.estudiantes.find(e => e.role === 'estudiante');
+                                                            if (estudianteValido) {
+                                                                navigate(`/RealizarEvaluacion?commission_id=${comision.id}&theme_id=${evaluacionSeleccionada.tema.id}&user_id=${estudianteValido.id}`);
+                                                            } else {
+                                                                alert('No hay estudiantes asignados a esta comisión');
+                                                            }
+                                                        }}
                                                         className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
                                                     >
                                                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
