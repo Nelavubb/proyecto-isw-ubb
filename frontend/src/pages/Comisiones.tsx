@@ -56,6 +56,7 @@ interface Evaluacion {
     estado: 'pendiente' | 'finalizada';
     fechaCreacion: string;
     totalEstudiantes: number;
+    profesorNombre?: string;
 }
 
 // Los datos se cargan desde el backend
@@ -170,7 +171,9 @@ export default function Comisiones() {
     const loadComisiones = async () => {
         try {
             setLoadingEvaluaciones(true);
-            const userId = user?.id ? parseInt(user.id) : undefined;
+            // Si es administrador, no filtrar por userId para ver todas las comisiones
+            const isAdmin = user?.role?.toLowerCase() === 'administrador';
+            const userId = (!isAdmin && user?.id) ? parseInt(user.id) : undefined;
             const data = await getCommissions(userId ? { userId } : undefined);
 
             // Agrupar comisiones por evaluation_group para crear "evaluaciones"
@@ -193,6 +196,7 @@ export default function Comisiones() {
                         estado: 'pendiente', // Se calculará después
                         fechaCreacion: commission.date,
                         totalEstudiantes: 0,
+                        profesorNombre: commission.profesor?.user_name || 'Sin profesor',
                     });
                 }
 
@@ -261,16 +265,22 @@ export default function Comisiones() {
             // Cargar todas las asignaturas para obtener los nombres
             const allSubjectsData = await getAllSubjects();
             
-            // Cargar solo las asignaturas del profesor para filtrar
-            const userId = user?.id ? parseInt(user.id) : undefined;
-            const profesorSubjects = userId ? await getSubjectsByUser(userId) : [];
-            const profesorSubjectIds = profesorSubjects.map((s: Subject) => Number(s.subject_id));
+            // Verificar si es administrador
+            const isAdmin = user?.role?.toLowerCase() === 'administrador';
+            
+            // Si es admin, no filtrar por profesor
+            let profesorSubjectIds: number[] = [];
+            if (!isAdmin) {
+                const userId = user?.id ? parseInt(user.id) : undefined;
+                const profesorSubjects = userId ? await getSubjectsByUser(userId) : [];
+                profesorSubjectIds = profesorSubjects.map((s: Subject) => Number(s.subject_id));
+            }
             
             setAsignaturas(allSubjectsData);
             
-            // Filtrar y transformar los temas (solo los de asignaturas del profesor)
+            // Filtrar y transformar los temas (admin ve todos, profesor solo los de sus asignaturas)
             const temasTransformados: Tema[] = themesData
-                .filter((theme: Theme) => profesorSubjectIds.includes(Number(theme.subject_id)))
+                .filter((theme: Theme) => isAdmin || profesorSubjectIds.includes(Number(theme.subject_id)))
                 .map((theme: Theme) => {
                     const themeSubjectId = Number(theme.subject_id);
                     const asignatura = allSubjectsData.find((s: Subject) => Number(s.subject_id) === themeSubjectId);
@@ -806,7 +816,15 @@ export default function Comisiones() {
                                                     <h3 className="text-lg font-bold text-gray-800">{evaluacion.tema.nombre}</h3>
                                                     {getEstadoBadge(evaluacion.estado)}
                                                 </div>
-                                                <p className="text-sm text-gray-600 mb-3">{evaluacion.tema.asignatura}</p>
+                                                <p className="text-sm text-gray-600 mb-1">{evaluacion.tema.asignatura}</p>
+                                                {evaluacion.profesorNombre && (
+                                                    <p className="text-sm text-blue-600 mb-3 flex items-center gap-1">
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                        </svg>
+                                                        Profesor: {evaluacion.profesorNombre}
+                                                    </p>
+                                                )}
 
                                                 <div className="flex flex-wrap gap-4 text-sm text-gray-500">
                                                     <div className="flex items-center gap-1">

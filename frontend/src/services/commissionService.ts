@@ -28,6 +28,10 @@ export interface Commission {
         theme_id: number;
         theme_name: string;
     };
+    profesor?: {
+        user_id: number;
+        user_name: string;
+    };
     estudiantes?: Estudiante[];
     evaluaciones?: EvaluacionResumen[];
     totalEstudiantes?: number;
