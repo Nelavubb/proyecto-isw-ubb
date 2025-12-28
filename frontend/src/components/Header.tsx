@@ -39,7 +39,8 @@ const Header = ({ title = 'Facultad de Derecho', variant = 'default', showLogout
               <button
                 onClick={() => {
                   logout();
-                  navigate('/');
+                  // Usar replace para evitar que el usuario pueda volver atrás
+                  navigate('/', { replace: true });
                 }}
                 className="flex items-center gap-2 px-4 py-2 hover:bg-[#004488] hover:text-red-500 rounded-lg transition-colors font-medium"
                 title="Cerrar Sesión"
