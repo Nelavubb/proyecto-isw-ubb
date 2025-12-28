@@ -3,7 +3,7 @@ import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
 import { useNavigate } from 'react-router-dom';
 import { getSubjectsByUser, Subject } from '../services/subjectService';
-import { ChevronRight, GraduationCap } from "lucide-react";
+import { ChevronRight, GraduationCap, Calendar } from "lucide-react";
 import { useAuth } from '../hooks/useAuth';
 
 export default function GestionTemas() {
@@ -80,6 +80,12 @@ export default function GestionTemas() {
                                         <h3 className="font-bold text-gray-800 group-hover:text-[#002e5d]">
                                             {subject.subject_name}
                                         </h3>
+                                        {subject.term && (
+                                            <div className="flex items-center gap-1 mt-1 text-sm text-gray-500">
+                                                <Calendar className="w-4 h-4" />
+                                                <span>{subject.term.code}</span>
+                                            </div>
+                                        )}
                                     </div>
                                     <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-[#002e5d]" />
                                 </button>
