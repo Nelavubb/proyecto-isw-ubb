@@ -261,10 +261,15 @@ export default function Users() {
                 fetchUsers();
                 setShowDeleteConfirm(false);
                 setUserToDelete(null);
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error al eliminar usuario:', error);
-                setToast({ type: 'error', text: 'Error al eliminar el usuario' });
-                setTimeout(() => setToast(null), 3000);
+                
+                // Mostrar mensaje específico si el usuario tiene dependencias
+                const errorMessage = error.response?.data?.error || 'Error al eliminar el usuario';
+                setToast({ type: 'error', text: errorMessage });
+                setTimeout(() => setToast(null), 10000); // Más tiempo para leer el mensaje
+                setShowDeleteConfirm(false);
+                setUserToDelete(null);
             }
         }
     };

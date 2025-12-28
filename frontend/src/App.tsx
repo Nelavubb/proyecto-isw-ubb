@@ -5,6 +5,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { useAuth } from "./hooks/useAuth";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Evaluaciones from "./pages/Evaluaciones";
@@ -25,16 +26,44 @@ import ThemeQuestionManager from "./pages/ThemeQuestionManager";
 
 // Componente para rutas protegidas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  // Temporalmente comentado hasta que tengas authService
-  // return authService.isAuthenticated() ? children : <Navigate to="/" />;
-  return children; // Temporal
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  // Mientras carga, mostrar nada para evitar flash de contenido
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-gray-500">Cargando...</div>
+      </div>
+    );
+  }
+  
+  // Si no está autenticado, redirigir al login
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return <>{children}</>;
 };
 
 // Componente para rutas públicas (redirige al dashboard si ya está autenticado)
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  // Temporalmente comentado hasta que tengas authService
-  // return !authService.isAuthenticated() ? children : <Navigate to="/dashboard" />;
-  return children; // Temporal
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  // Mientras carga, mostrar nada
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-gray-500">Cargando...</div>
+      </div>
+    );
+  }
+  
+  // Si ya está autenticado, redirigir al dashboard
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  return <>{children}</>;
 };
 
 function App() {
