@@ -8,6 +8,8 @@ import guidelineRoutes from './guidelineRoutes.js';
 import historyRoutes from './historyRoutes.js';
 import evaluationRoutes from './evaluationRoutes.js';
 import commissionRoutes from './commissionRoutes.js';
+import termRoutes from './termRoutes.js';
+import studentSubjectRoutes from './studentSubjectRoutes.js';
 
 const router = express.Router();
 
@@ -21,5 +23,7 @@ router.use('/guidelines', guidelineRoutes);
 router.use('/history', historyRoutes);
 router.use('/evaluation-details', evaluationRoutes);
 router.use('/commissions', commissionRoutes);
+router.use('/terms', termRoutes);
+router.use('/student-subjects', studentSubjectRoutes);
 
 export default router;
