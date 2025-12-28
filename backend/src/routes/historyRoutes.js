@@ -22,14 +22,16 @@ router.get('/subjects/:userId', async (req, res) => {
         const subjects = await studentSubjectRepo
             .createQueryBuilder("student_subject")
             .innerJoin("subject", "s", "s.subject_id = student_subject.subject_id")
+            .innerJoin("term", "t", "t.term_id = s.term_id")
             .select([
                 "student_subject.student_subject_id",
                 "student_subject.subject_id",
                 "s.subject_name",
-                "student_subject.semester"
+                "t.code",
+                "t.is_current"
             ])
             .where("student_subject.user_id = :userId", { userId })
-            .orderBy("student_subject.semester", "DESC")
+            .orderBy("t.code", "DESC")
             .getRawMany();
 
         // Mapear los resultados
@@ -37,7 +39,8 @@ router.get('/subjects/:userId', async (req, res) => {
             student_subject_id: s.student_subject_student_subject_id,
             subject_id: s.student_subject_subject_id,
             subject_name: s.s_subject_name,
-            semester: s.student_subject_semester
+            semester: s.t_code,
+            is_current: s.t_is_current
         }));
 
         res.json(mappedSubjects);
@@ -47,10 +50,10 @@ router.get('/subjects/:userId', async (req, res) => {
     }
 });
 
-// GET /api/history/evaluations/:userId/:subjectId/:semester
+// GET /api/history/evaluations/:userId/:subjectId/:code
 // Obtiene las evaluaciones de una asignatura específica en un semestre
-router.get('/evaluations/:userId/:subjectId/:semester', async (req, res) => {
-    const { userId, subjectId, semester } = req.params;
+router.get('/evaluations/:userId/:subjectId/:code', async (req, res) => {
+    const { userId, subjectId, code } = req.params;
 
     try {
         const evalRepo = AppDataSource.getRepository(Evaluation_detail);
@@ -62,6 +65,8 @@ router.get('/evaluations/:userId/:subjectId/:semester', async (req, res) => {
             .innerJoin("commission", "c", "c.commission_id = ed.commission_id")
             .innerJoin("theme", "t", "t.theme_id = c.theme_id")
             .innerJoin("student_subject", "ss", "ss.subject_id = t.subject_id AND ss.user_id = ed.user_id")
+            .innerJoin("subject", "sub", "sub.subject_id = ss.subject_id")
+            .innerJoin("term", "te", "te.term_id = sub.term_id")
             .select([
                 "ed.evaluation_detail_id",
                 "ed.grade",
@@ -71,7 +76,8 @@ router.get('/evaluations/:userId/:subjectId/:semester', async (req, res) => {
             ])
             .where("ed.user_id = :userId", { userId })
             .andWhere("t.subject_id = :subjectId", { subjectId })
-            .andWhere("ss.semester = :semester", { semester })
+            .andWhere("te.code = :code", { code })
+            .andWhere("ed.grade IS NOT NULL")
             .orderBy("c.date", "DESC")
             .getRawMany();
 
@@ -163,6 +169,7 @@ router.get('/recent/:userId', async (req, res) => {
                 "c.date"
             ])
             .where("ed.user_id = :userId", { userId })
+            .andWhere("ed.grade IS NOT NULL")
             .orderBy("c.date", "DESC")
             .limit(2)
             .getRawMany();
