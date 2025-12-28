@@ -768,22 +768,6 @@ export default function Comisiones() {
                             </button>
                         </div>
 
-                        {/* Filtros rápidos */}
-                        <div className="flex gap-2 flex-wrap">
-                            <button className="px-4 py-2 bg-[#003366] text-white rounded-lg text-sm font-bold">
-                                Todas ({evaluaciones.length})
-                            </button>
-                            <button className="px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium border border-gray-200 hover:bg-gray-50">
-                                Programadas ({evaluaciones.filter(e => e.estado === 'programada').length})
-                            </button>
-                            <button className="px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium border border-gray-200 hover:bg-gray-50">
-                                Borradores ({evaluaciones.filter(e => e.estado === 'borrador').length})
-                            </button>
-                            <button className="px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium border border-gray-200 hover:bg-gray-50">
-                                Finalizadas ({evaluaciones.filter(e => e.estado === 'finalizada').length})
-                            </button>
-                        </div>
-
                         {/* Lista de Evaluaciones */}
                         {loadingEvaluaciones ? (
                             <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-12 text-center">
