@@ -107,8 +107,7 @@ const ProfesorDashboard = ({ user }: ProfesorDashboardProps) => {
       <main className="relative z-10 max-w-6xl mx-auto px-6 -mt-36 pb-24">
         {/* Welcome Section */}
         <div className="mb-6 text-white">
-          <h2 className="text-3xl font-bold">Bienvenido(a), {user.name}</h2>
-          <p className="mt-1 text-white/80">Rol: {user.role}</p>
+          <h2 className="text-3xl font-bold">Bienvenido(a), {user.name}</h2>  
         </div>
 
         {/* Comisiones a Evaluar */}
