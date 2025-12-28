@@ -666,7 +666,7 @@ export default function RealizacionEvaluacion() {
                         Registrar retroalimentación
                       </button>
                       <button
-                        onClick={() => setShowExitModal(true)}
+                        onClick={() => completed ? navigate('/comisiones') : setShowExitModal(true)}
                         className="px-4 py-2 bg-gray-500 text-white font-bold rounded-lg hover:bg-gray-600 transition shadow-sm flex items-center justify-center gap-2 text-sm"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

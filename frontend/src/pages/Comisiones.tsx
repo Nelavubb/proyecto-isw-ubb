@@ -112,6 +112,20 @@ export default function Comisiones() {
     const [modoEdicion, setModoEdicion] = useState(false);
     const [comisionEditandoId, setComisionEditandoId] = useState<number | null>(null);
 
+    // Función para guardar datos y navegar a AddGuidelines
+    const navigateToGuidelines = (url: string) => {
+        // Guardar todos los datos relevantes en sessionStorage
+        const dataToSave = {
+            temaSeleccionado,
+            pautaSeleccionada,
+            comisiones,
+            nuevaComision,
+            vistaActual,
+        };
+        sessionStorage.setItem('comisionesFormData', JSON.stringify(dataToSave));
+        navigate(url);
+    };
+
     // Bloquear scroll cuando el modal está abierto
     useEffect(() => {
         if (showModal) {
@@ -123,6 +137,26 @@ export default function Comisiones() {
             document.body.style.overflow = 'unset';
         };
     }, [showModal]);
+
+    // Restaurar datos guardados del sessionStorage al montar el componente
+    useEffect(() => {
+        const savedData = sessionStorage.getItem('comisionesFormData');
+        if (savedData) {
+            try {
+                const data = JSON.parse(savedData);
+                if (data.temaSeleccionado) setTemaSeleccionado(data.temaSeleccionado);
+                if (data.pautaSeleccionada) setPautaSeleccionada(data.pautaSeleccionada);
+                if (data.comisiones) setComisiones(data.comisiones);
+                if (data.nuevaComision) setNuevaComision(data.nuevaComision);
+                if (data.vistaActual) setVistaActual(data.vistaActual);
+                // Limpiar los datos guardados después de restaurarlos
+                sessionStorage.removeItem('comisionesFormData');
+            } catch (error) {
+                console.error('Error al restaurar datos de comisiones:', error);
+                sessionStorage.removeItem('comisionesFormData');
+            }
+        }
+    }, []);
 
     // Cargar datos al montarse el componente
     useEffect(() => {
@@ -970,10 +1004,13 @@ export default function Comisiones() {
                                                 <>
                                                     <button
                                                         onClick={() => {
-                                                            // Buscar el primer estudiante con rol "estudiante"
-                                                            const estudianteValido = comision.estudiantes.find(e => e.role === 'estudiante');
+                                                            // Buscar el primer estudiante con rol "Estudiante"
+                                                            const estudianteValido = comision.estudiantes.find(e => e.role?.toLowerCase() === 'estudiante');
                                                             if (estudianteValido) {
                                                                 navigate(`/RealizarEvaluacion?commission_id=${comision.id}&theme_id=${evaluacionSeleccionada.tema.id}&user_id=${estudianteValido.id}`);
+                                                            } else if (comision.estudiantes.length > 0) {
+                                                                // Si no tiene rol específico, usar el primer estudiante
+                                                                navigate(`/RealizarEvaluacion?commission_id=${comision.id}&theme_id=${evaluacionSeleccionada.tema.id}&user_id=${comision.estudiantes[0].id}`);
                                                             } else {
                                                                 alert('No hay estudiantes asignados a esta comisión');
                                                             }
@@ -1334,7 +1371,7 @@ export default function Comisiones() {
 
                                     {pautaSeleccionada ? (
                                         <button
-                                            onClick={() => navigate(`/add-guidelines?id=${pautaSeleccionada.guidline_id}&themeId=${temaSeleccionado?.id}`)}
+                                            onClick={() => navigateToGuidelines(`/add-guidelines?id=${pautaSeleccionada.guidline_id}&themeId=${temaSeleccionado?.id}`)}
                                             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
                                         >
                                             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1344,7 +1381,7 @@ export default function Comisiones() {
                                         </button>
                                     ) : (
                                         <button
-                                            onClick={() => navigate(`/add-guidelines?themeId=${temaSeleccionado?.id}`)}
+                                            onClick={() => navigateToGuidelines(`/add-guidelines?themeId=${temaSeleccionado?.id}`)}
                                             className="inline-flex items-center px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm font-bold"
                                         >
                                             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

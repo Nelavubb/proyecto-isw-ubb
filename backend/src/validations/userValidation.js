@@ -2,7 +2,7 @@ import Joi from 'joi';
 
 export const registerValidation = Joi.object({
     role: Joi.string()
-        .valid('Estudiante', 'Profesor', 'Administrador')
+        .valid('Estudiante', 'Profesor', 'Administrador', 'ESTUDIANTE', 'PROFESOR', 'ADMINISTRADOR' , 'estudiante', 'profesor', 'administrador')
         .required()
         .messages({
             'any.only': 'El rol debe ser: Estudiante, Profesor o Administrador',
