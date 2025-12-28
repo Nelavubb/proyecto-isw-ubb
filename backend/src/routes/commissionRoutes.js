@@ -39,6 +39,17 @@ router.get('/', async (req, res) => {
                     .getMany();
 
                 const userRepository = AppDataSource.getRepository('user');
+                
+                // Obtener datos del profesor que creó la comisión
+                let profesor = null;
+                if (commission.user_id) {
+                    profesor = await userRepository
+                        .createQueryBuilder('user')
+                        .where('user.user_id = :userId', { userId: commission.user_id })
+                        .select(['user.user_id', 'user.user_name'])
+                        .getOne();
+                }
+                
                 const studentIds = evaluations.map(e => e.user_id);
                 let students = [];
 
@@ -64,6 +75,7 @@ router.get('/', async (req, res) => {
 
                 return {
                     ...commission,
+                    profesor: profesor,
                     estudiantes: students,
                     totalEstudiantes: students.length,
                     finalizada: allEvaluated
