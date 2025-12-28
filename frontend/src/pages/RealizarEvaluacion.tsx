@@ -44,7 +44,7 @@ type EvaluacionPendiente = EvaluationDetail & {
 export default function RealizacionEvaluacion() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
+
   // Obtener parámetros de la URL
   const evaluationDetailId = searchParams.get('evaluation_detail_id');
   const commissionId = searchParams.get('commission_id');
@@ -78,7 +78,7 @@ export default function RealizacionEvaluacion() {
   const loadData = async () => {
     try {
       setLoading(true);
-      
+
       // Validar que tengamos los parámetros necesarios
       if (!themeId || (!evaluationDetailId && !commissionId)) {
         setToast({ type: 'error', text: 'Parámetros inválidos. Por favor, vuelve a Comisiones.' });
@@ -106,7 +106,7 @@ export default function RealizacionEvaluacion() {
 
       // Cargar las evaluaciones pendientes
       const evaluaciones = await getEvaluationsPending();
-      
+
       // Buscar la evaluación por evaluation_detail_id o commission_id
       let evalBase;
       if (evaluationDetailId) {
@@ -114,10 +114,10 @@ export default function RealizacionEvaluacion() {
       } else if (commissionId && userId) {
         // Buscar evaluación pendiente para este estudiante específico en esta comisión
         const userIdNum = parseInt(userId);
-        evalBase = evaluaciones.find(e => 
+        evalBase = evaluaciones.find(e =>
           e.commission_id === parseInt(commissionId) && e.user_id === userIdNum
         );
-        
+
         // Si no hay evaluación pendiente para este estudiante, crear una
         if (!evalBase && guidelineData) {
           try {
@@ -243,9 +243,9 @@ export default function RealizacionEvaluacion() {
   // 51% de exigencia para nota 4.0 (aprobación)
   const calculateFinalGrade = (totalScore: number, maxScore: number): number => {
     if (maxScore === 0) return 1;
-    
+
     const percentage = totalScore / maxScore;
-    
+
     if (percentage < 0.51) {
       // Mapea 0-51% a notas 1.0-4.0
       return 1 + (percentage / 0.51) * 3;
@@ -265,7 +265,7 @@ export default function RealizacionEvaluacion() {
   const generateRandomQuestion = () => {
     // Obtener el theme_id de la evaluación para filtrar preguntas
     const currentThemeId = themeId || evaluacionSeleccionada?.guidline?.theme?.theme_id?.toString();
-    
+
     if (!currentThemeId) {
       setToast({ type: 'error', text: 'No hay tema asociado a esta evaluación.' });
       return;
@@ -299,7 +299,7 @@ export default function RealizacionEvaluacion() {
 
     // Convertir coma a punto para procesamiento
     const strValue = String(value).replace(',', '.');
-    
+
     // Validar formato: solo números con máximo 1 decimal
     const decimalRegex = /^\d+(\.\d{0,1})?$/;
     if (!decimalRegex.test(strValue)) {
@@ -311,7 +311,7 @@ export default function RealizacionEvaluacion() {
 
     // Limitar al rango válido
     const finalValue = Math.max(0, Math.min(criteria[index].scor_max, numValue));
-    
+
     // Redondear a 1 decimal
     const roundedValue = Math.round(finalValue * 10) / 10;
 
@@ -354,7 +354,7 @@ export default function RealizacionEvaluacion() {
 
   const guardarProgreso = async () => {
     if (!evaluacionSeleccionada) return;
-    
+
     // Validar feedback antes de guardar
     if (!validateFeedbackBeforeSave()) return;
 
@@ -686,51 +686,61 @@ export default function RealizacionEvaluacion() {
 
       {/* Modal de confirmación de salida */}
       {showExitModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+        <div className="fixed inset-0 flex items-center justify-center z-[70]">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowExitModal(false)}
+          />
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 z-10 relative animate-in fade-in zoom-in-95 duration-200 border-t-4 border-yellow-500">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="p-3 bg-yellow-100 rounded-full flex-shrink-0">
                 <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-bold text-gray-900">¿Está seguro que desea salir?</h3>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">¿Está seguro que desea salir?</h3>
+                <p className="text-gray-600 text-sm leading-relaxed">
+                  Tiene cambios sin guardar. ¿Desea guardar el progreso antes de salir?
+                </p>
+              </div>
             </div>
-            <p className="text-gray-600 mb-6">
-              Tiene cambios sin guardar. ¿Desea guardar el progreso antes de salir?
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3">
+
+            <div className="flex flex-col gap-3 mt-6">
               <button
                 onClick={async () => {
                   await guardarProgreso();
                   setShowExitModal(false);
                   navigate('/comisiones');
                 }}
-                className="flex-1 px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#002244] transition flex items-center justify-center gap-2"
+                className="w-full px-4 py-2 bg-[#003366] text-white font-medium rounded-lg hover:bg-[#002244] transition-colors flex items-center justify-center gap-2 shadow-sm"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
                 Guardar y salir
               </button>
-              <button
-                onClick={() => {
-                  setShowExitModal(false);
-                  navigate('/comisiones');
-                }}
-                className="flex-1 px-4 py-2 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition flex items-center justify-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Salir sin guardar
-              </button>
-              <button
-                onClick={() => setShowExitModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300 transition"
-              >
-                Cancelar
-              </button>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowExitModal(false);
+                    navigate('/comisiones');
+                  }}
+                  className="flex-1 px-4 py-2 bg-white text-red-600 border border-red-200 font-medium rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Salir sin guardar
+                </button>
+                <button
+                  onClick={() => setShowExitModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
           </div>
         </div>
