@@ -14,6 +14,7 @@ export interface Commission {
     date: string;
     time: string;
     location: string;
+    evaluation_group: string;
     theme?: {
         theme_id: number;
         theme_name: string;
@@ -30,6 +31,7 @@ export interface CreateCommissionData {
     date: string;
     time: string;
     location: string;
+    evaluation_group: string;
     estudiantes?: number[]; // array de user_ids
 }
 

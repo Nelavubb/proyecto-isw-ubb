@@ -152,15 +152,16 @@ router.post('/', async (req, res) => {
             date, 
             time, 
             location,
+            evaluation_group, // identificador de grupo de evaluación
             estudiantes // array de user_ids de estudiantes
         } = req.body;
 
         console.log('Datos recibidos:', req.body);
 
         // Validaciones
-        if (!commission_name || !user_id || !theme_id || !date || !time || !location) {
+        if (!commission_name || !user_id || !theme_id || !date || !time || !location || !evaluation_group) {
             return res.status(400).json({ 
-                error: 'Faltan campos requeridos: commission_name, user_id, theme_id, date, time, location' 
+                error: 'Faltan campos requeridos: commission_name, user_id, theme_id, date, time, location, evaluation_group' 
             });
         }
 
@@ -173,7 +174,8 @@ router.post('/', async (req, res) => {
             theme_id,
             date,
             time,
-            location
+            location,
+            evaluation_group
         });
 
         console.log('Intentando guardar comisión:', newCommission);
@@ -208,12 +210,12 @@ router.post('/', async (req, res) => {
 
 /**
  * PUT /api/commissions/:id
- * Actualiza una comisión existente
+ * Actualiza una comisión existente y sus estudiantes
  */
 router.put('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { commission_name, date, time, location } = req.body;
+        const { commission_name, date, time, location, estudiantes } = req.body;
 
         const commissionRepository = AppDataSource.getRepository(Commission);
         const commission = await commissionRepository.findOne({
@@ -230,6 +232,31 @@ router.put('/:id', async (req, res) => {
         if (location) commission.location = location;
 
         const updatedCommission = await commissionRepository.save(commission);
+
+        // Si se proporcionan estudiantes, actualizar los evaluation_details
+        if (estudiantes && Array.isArray(estudiantes)) {
+            const evaluationRepository = AppDataSource.getRepository(Evaluation_detail);
+            
+            // Eliminar los evaluation_details actuales de esta comisión
+            await evaluationRepository
+                .createQueryBuilder()
+                .delete()
+                .where('commission_id = :commissionId', { commissionId: id })
+                .execute();
+            
+            // Crear nuevos evaluation_details para los estudiantes
+            for (const studentId of estudiantes) {
+                const evaluationData = {
+                    user_id: studentId,
+                    commission_id: parseInt(id),
+                    status: 'pending'
+                };
+                
+                const evaluation = evaluationRepository.create(evaluationData);
+                await evaluationRepository.save(evaluation);
+            }
+        }
+
         res.json(updatedCommission);
     } catch (error) {
         console.error('Error updating commission:', error);
