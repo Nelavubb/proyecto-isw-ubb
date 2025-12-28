@@ -637,7 +637,6 @@ export default function Comisiones() {
                             evaluada: false,
                         })),
                         estado: 'pendiente',
-                        estado: 'pendiente',
                         fechaCreacion: primeraComision.date,
                         totalEstudiantes: comisionesDeEvaluacion.reduce(
                             (sum, c) => sum + (c.estudiantes?.length || 0), 0
