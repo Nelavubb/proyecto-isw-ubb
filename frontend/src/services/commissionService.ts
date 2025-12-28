@@ -5,6 +5,14 @@ export interface Estudiante {
     user_name: string;
     rut: string;
     role?: string;
+    status?: 'pending' | 'completed';
+}
+
+export interface EvaluacionResumen {
+    evaluation_detail_id: number;
+    user_id: number;
+    commission_id: number;
+    status: string;
 }
 
 export interface Commission {
@@ -21,7 +29,9 @@ export interface Commission {
         theme_name: string;
     };
     estudiantes?: Estudiante[];
+    evaluaciones?: EvaluacionResumen[];
     totalEstudiantes?: number;
+    finalizada?: boolean;
 }
 
 export interface CreateCommissionData {

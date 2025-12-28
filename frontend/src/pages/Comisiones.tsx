@@ -33,6 +33,7 @@ interface Estudiante {
     rut: string;
     email?: string;
     role?: string;
+    status?: 'pending' | 'completed';
 }
 
 interface Comision {
@@ -52,12 +53,12 @@ interface Evaluacion {
     tema: Tema;
     nombrePauta: string;
     comisiones: Comision[];
-    estado: 'borrador' | 'programada' | 'en_curso' | 'finalizada';
+    estado: 'pendiente' | 'finalizada';
     fechaCreacion: string;
     totalEstudiantes: number;
 }
 
-// Los datos ahora se cargan desde el backend
+// Los datos se cargan desde el backend
 
 export default function Comisiones() {
     const navigate = useNavigate();
@@ -189,7 +190,7 @@ export default function Comisiones() {
                         },
                         nombrePauta: 'Pauta asociada',
                         comisiones: [],
-                        estado: 'programada',
+                        estado: 'pendiente', // Se calculará después
                         fechaCreacion: commission.date,
                         totalEstudiantes: 0,
                     });
@@ -200,8 +201,12 @@ export default function Comisiones() {
                     id: e.user_id,
                     nombre: e.user_name,
                     rut: e.rut,
-                    role: e.role,
+                    status: e.status || 'pending',
                 })) || [];
+
+                // Determinar si la comisión está finalizada (todos los estudiantes evaluados)
+                const comisionFinalizada = estudiantes.length > 0 && 
+                    estudiantes.every(e => e.status === 'completed');
 
                 evaluacion.comisiones.push({
                     id: commission.commission_id,
@@ -211,13 +216,24 @@ export default function Comisiones() {
                     modalidad: commission.location?.includes('http') ? 'online' : 'presencial',
                     lugar: commission.location,
                     estudiantes: estudiantes,
-                    evaluada: false,
+                    evaluada: comisionFinalizada,
                 });
 
                 evaluacion.totalEstudiantes += estudiantes.length;
             }
 
-            setEvaluaciones(Array.from(evaluacionesMap.values()));
+            // Calcular estado de cada evaluación basado en sus comisiones
+            const evaluacionesArray = Array.from(evaluacionesMap.values()).map(evaluacion => {
+                // Una evaluación está finalizada si TODAS sus comisiones están evaluadas
+                const todasFinalizadas = evaluacion.comisiones.length > 0 && 
+                    evaluacion.comisiones.every(c => c.evaluada);
+                return {
+                    ...evaluacion,
+                    estado: todasFinalizadas ? 'finalizada' as const : 'pendiente' as const
+                };
+            });
+
+            setEvaluaciones(evaluacionesArray);
         } catch (error) {
             console.error('Error al cargar comisiones:', error);
         } finally {
@@ -603,7 +619,7 @@ export default function Comisiones() {
                             })) || [],
                             evaluada: false,
                         })),
-                        estado: 'programada',
+                        estado: 'pendiente',
                         fechaCreacion: primeraComision.date,
                         totalEstudiantes: comisionesDeEvaluacion.reduce(
                             (sum, c) => sum + (c.estudiantes?.length || 0), 0
@@ -713,12 +729,8 @@ export default function Comisiones() {
 
     const getEstadoBadge = (estado: Evaluacion['estado']) => {
         switch (estado) {
-            case 'borrador':
-                return <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">Borrador</span>;
-            case 'programada':
-                return <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Programada</span>;
-            case 'en_curso':
-                return <span className="px-2 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">En curso</span>;
+            case 'pendiente':
+                return <span className="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">Pendiente</span>;
             case 'finalizada':
                 return <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Finalizada</span>;
         }
@@ -753,22 +765,6 @@ export default function Comisiones() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                 </svg>
                                 Crear Evaluación
-                            </button>
-                        </div>
-
-                        {/* Filtros rápidos */}
-                        <div className="flex gap-2 flex-wrap">
-                            <button className="px-4 py-2 bg-[#003366] text-white rounded-lg text-sm font-bold">
-                                Todas ({evaluaciones.length})
-                            </button>
-                            <button className="px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium border border-gray-200 hover:bg-gray-50">
-                                Programadas ({evaluaciones.filter(e => e.estado === 'programada').length})
-                            </button>
-                            <button className="px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium border border-gray-200 hover:bg-gray-50">
-                                Borradores ({evaluaciones.filter(e => e.estado === 'borrador').length})
-                            </button>
-                            <button className="px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium border border-gray-200 hover:bg-gray-50">
-                                Finalizadas ({evaluaciones.filter(e => e.estado === 'finalizada').length})
                             </button>
                         </div>
 

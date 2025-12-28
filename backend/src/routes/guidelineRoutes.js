@@ -2,6 +2,7 @@ import express from 'express';
 import { AppDataSource } from '../config/database.js';
 import { Guidline } from '../models/guidline.js';
 import { Criterion } from '../models/criterion.js';
+import { score_detail } from '../models/scoredetail.js';
 import { createGuidelineValidation, updateGuidelineValidation } from '../validations/guidelineValidation.js';
 import { createCriterionValidation, updateCriterionValidation } from '../validations/criterionValidation.js';
 
@@ -9,6 +10,7 @@ const router = express.Router();
 
 const guidelineRepository = () => AppDataSource.getRepository(Guidline);
 const criterionRepository = () => AppDataSource.getRepository(Criterion);
+const scoreDetailRepository = () => AppDataSource.getRepository(score_detail);
 
 // Obtener todas las pautas
 router.get('/', async (req, res) => {
@@ -59,6 +61,38 @@ router.get('/:id', async (req, res) => {
         res.json(guideline);
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener pauta', details: error.message });
+    }
+});
+
+// Verificar si una pauta tiene evaluaciones asociadas (score_details)
+router.get('/:id/has-evaluations', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Obtener los criterios de esta pauta
+        const criteria = await criterionRepository().find({
+            where: { guidline_id: parseInt(id) }
+        });
+        
+        if (!criteria || criteria.length === 0) {
+            return res.json({ hasEvaluations: false, count: 0 });
+        }
+        
+        // Contar score_details asociados a estos criterios
+        let totalScoreDetails = 0;
+        for (const criterion of criteria) {
+            const count = await scoreDetailRepository().count({
+                where: { criterion_id: criterion.criterion_id }
+            });
+            totalScoreDetails += count;
+        }
+        
+        res.json({ 
+            hasEvaluations: totalScoreDetails > 0, 
+            count: totalScoreDetails 
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al verificar evaluaciones', details: error.message });
     }
 });
 
@@ -150,31 +184,34 @@ router.put('/:id', async (req, res) => {
 
         // Actualizar criterios
         if (description && Array.isArray(description)) {
-            // Obtener criterios antiguos para eliminarlos
+            // Obtener criterios antiguos
             const oldCriteria = await criterionRepository().find({
                 where: { guidline_id: guideline.guidline_id }
             });
             
             if (oldCriteria && oldCriteria.length > 0) {
+                // Primero eliminar los score_details relacionados con estos criterios
+                for (const criterion of oldCriteria) {
+                    await scoreDetailRepository().delete({ criterion_id: criterion.criterion_id });
+                }
+                // Ahora sí eliminar los criterios
                 await criterionRepository().remove(oldCriteria);
             }
 
-            // Validar y crear nuevos criterios
+            // Crear nuevos criterios (sin validación Joi estricta para update)
             const criteriaToSave = [];
             for (const criterion of description) {
-                const { error: criterionError, value: criterionValue } = updateCriterionValidation.validate({
-                    description: criterion.description,
-                    scor_max: criterion.scor_max,
-                    guidline_id: criterion.guidline_id
-                });
-
-                if (criterionError) {
-                    return res.status(400).json({ error: criterionError.details[0].message });
+                // Validación básica
+                if (!criterion.description || criterion.description.trim().length < 3) {
+                    return res.status(400).json({ error: 'Cada criterio debe tener una descripción de al menos 3 caracteres' });
+                }
+                if (!criterion.scor_max || criterion.scor_max <= 0) {
+                    return res.status(400).json({ error: 'Cada criterio debe tener un puntaje máximo positivo' });
                 }
 
                 criteriaToSave.push(criterionRepository().create({
-                    description: criterionValue.description,
-                    scor_max: criterionValue.scor_max,
+                    description: criterion.description.trim(),
+                    scor_max: criterion.scor_max,
                     guidline_id: guideline.guidline_id
                 }));
             }

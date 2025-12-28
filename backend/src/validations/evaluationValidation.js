@@ -149,7 +149,7 @@ export const updateEvaluationValidation = Joi.object({
     }),
   
   status: Joi.string()
-    .valid('pending', 'completed', 'cancelled')
+    .valid('pending', 'completed')
     .messages({
       'any.only': 'El estado debe ser: pending, completed o cancelled'
     }),
