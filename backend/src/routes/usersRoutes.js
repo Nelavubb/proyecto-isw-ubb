@@ -144,6 +144,16 @@ router.delete('/:id', async (req, res) => {
 
         res.json({ message: 'Usuario eliminado correctamente' });
     } catch (error) {
+        console.error('Error al eliminar usuario:', error);
+        
+        // Detectar error de clave foránea
+        if (error.code === '23503' || error.message?.includes('foreign key') || error.message?.includes('violates foreign key')) {
+            return res.status(409).json({ 
+                error: 'No se puede eliminar el usuario porque está asociado a comisiones, evaluaciones u otros registros. Primero elimine las referencias al usuario.',
+                details: 'El usuario tiene registros dependientes en el sistema'
+            });
+        }
+        
         res.status(500).json({ error: 'Error al eliminar usuario', details: error.message });
     }
 });
