@@ -92,18 +92,52 @@ const SubjectDetailsAdmin = () => {
 
     const handleUpdateSubject = async () => {
         if (!subject) return;
+
+        // Validation Logic
+        const trimmedName = editName.trim();
+
+        // 1. Name Validations
+        if (!trimmedName) {
+            setToast({ message: 'El nombre de la asignatura es obligatorio', type: 'error' });
+            return;
+        }
+        if (trimmedName.length < 2) {
+            setToast({ message: 'El nombre debe tener al menos 2 caracteres', type: 'error' });
+            return;
+        }
+        if (trimmedName.length > 300) {
+            setToast({ message: 'El nombre no puede exceder los 300 caracteres', type: 'error' });
+            return;
+        }
+        const nameRegex = /^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s-]+$/;
+        if (!nameRegex.test(trimmedName)) {
+            setToast({ message: 'El nombre contiene caracteres no válidos (solo letras, números, espacios, guiones y tildes)', type: 'error' });
+            return;
+        }
+
+        // 2. Selection Validations
+        if (!editTeacherId || editTeacherId === 0) {
+            setToast({ message: 'Debe seleccionar un profesor encargado', type: 'error' });
+            return;
+        }
+        if (!editTermId || editTermId === 0) {
+            setToast({ message: 'Debe seleccionar un periodo académico', type: 'error' });
+            return;
+        }
+
         try {
             await updateSubject(subject.subject_id, {
-                subject_name: editName,
+                subject_name: trimmedName,
                 user_id: editTeacherId,
                 term_id: editTermId
             });
-            setSubject({ ...subject, subject_name: editName, user_id: editTeacherId, term_id: editTermId });
+            setSubject({ ...subject, subject_name: trimmedName, user_id: editTeacherId, term_id: editTermId });
             setIsEditing(false);
             setToast({ message: 'Asignatura actualizada correctamente', type: 'success' });
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            setToast({ message: 'Error al actualizar la asignatura', type: 'error' });
+            const backendMsg = error.response?.data?.message || 'Error al actualizar la asignatura';
+            setToast({ message: backendMsg, type: 'error' });
         }
     };
 
@@ -212,12 +246,20 @@ const SubjectDetailsAdmin = () => {
                                                     Nombre de la Asignatura
                                                 </label>
                                                 {isEditing ? (
-                                                    <input
-                                                        type="text"
-                                                        value={editName}
-                                                        onChange={(e) => setEditName(e.target.value)}
-                                                        className="block w-full bg-gray-50 border border-gray-200 text-gray-700 py-2 px-3 rounded-lg focus:outline-none focus:border-[#003366] focus:ring-1 focus:ring-[#003366]"
-                                                    />
+                                                    <>
+                                                        <input
+                                                            type="text"
+                                                            value={editName}
+                                                            onChange={(e) => setEditName(e.target.value)}
+                                                            maxLength={300}
+                                                            className="block w-full bg-gray-50 border border-gray-200 text-gray-700 py-2 px-3 rounded-lg focus:outline-none focus:border-[#003366] focus:ring-1 focus:ring-[#003366]"
+                                                        />
+                                                        <div className="flex justify-end mt-1">
+                                                            <span className={`text-xs ${editName.length >= 300 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+                                                                {editName.length}/300
+                                                            </span>
+                                                        </div>
+                                                    </>
                                                 ) : (
                                                     <div className="text-gray-900 font-medium">{subject.subject_name}</div>
                                                 )}

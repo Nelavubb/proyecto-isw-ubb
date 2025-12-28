@@ -96,20 +96,26 @@ export default function SubjectSelectionAdmin() {
         const trimmedName = newSubjectName.trim();
         const newErrors: string[] = [];
 
+        // 1. Validation for Subject Name
         if (!trimmedName) {
             newErrors.push('El nombre de la asignatura es obligatorio');
         } else {
             if (trimmedName.length < 2) {
                 newErrors.push('El nombre debe tener al menos 2 caracteres');
             }
+            if (trimmedName.length > 300) {
+                newErrors.push('El nombre no puede exceder los 300 caracteres');
+            }
+            // Regex matching backend: Alphanumeric, spaces, accents, hyphens
             const nameRegex = /^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s-]+$/;
             if (!nameRegex.test(trimmedName)) {
-                newErrors.push('El nombre contiene caracteres no válidos (solo letras, números, espacios y guiones)');
+                newErrors.push('El nombre contiene caracteres no válidos (solo letras, números, espacios, guiones y tildes)');
             }
         }
 
+        // 2. Validation for Teacher
         if (!selectedTeacherId) {
-            newErrors.push('Debe seleccionar un profesor');
+            newErrors.push('Debe seleccionar un profesor encargado');
         } else {
             const isValidTeacher = teachers.some(t => t.user_id === Number(selectedTeacherId));
             if (!isValidTeacher) {
@@ -117,8 +123,15 @@ export default function SubjectSelectionAdmin() {
             }
         }
 
+        // 3. Validation for Term
         if (!selectedTermId) {
             newErrors.push('Debe seleccionar un periodo académico');
+        } else {
+            // Term must exist in the list
+            const isValidTerm = terms.some(t => t.term_id === Number(selectedTermId));
+            if (!isValidTerm) {
+                newErrors.push('El periodo seleccionado no es válido');
+            }
         }
 
         if (newErrors.length > 0) {
@@ -129,14 +142,14 @@ export default function SubjectSelectionAdmin() {
         try {
             if (editingSubject) {
                 await updateSubject(editingSubject.subject_id, {
-                    subject_name: newSubjectName,
+                    subject_name: trimmedName,
                     user_id: Number(selectedTeacherId),
                     term_id: Number(selectedTermId)
                 });
                 setToast({ type: 'success', text: 'Asignatura actualizada exitosamente' });
             } else {
                 await createSubject({
-                    subject_name: newSubjectName,
+                    subject_name: trimmedName,
                     user_id: Number(selectedTeacherId),
                     term_id: Number(selectedTermId)
                 });
@@ -144,12 +157,13 @@ export default function SubjectSelectionAdmin() {
             }
 
             handleCloseModal();
-            setToast({ type: 'success', text: editingSubject ? 'Asignatura actualizada exitosamente' : 'Asignatura creada exitosamente' });
-
+            // Toast set above covers the message
             fetchData();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error saving subject:", error);
-            setToast({ type: 'error', text: 'Error al guardar la asignatura' });
+            // Extract error message from backend if available
+            const backendMsg = error.response?.data?.message || error.response?.data?.details?.[0]?.message || 'Error al guardar la asignatura';
+            setToast({ type: 'error', text: backendMsg });
         } finally {
             setTimeout(() => setToast(null), 3000);
         }
