@@ -13,19 +13,32 @@ export const Subject = new EntitySchema({
             type: 'int',
             nullable: false,
         },
+        term_id: {
+            type: 'int',
+            nullable: true,
+        },
         subject_name: {
             type: 'varchar',
             length: 200,
             nullable: false,
-            unique: true,
+            unique: false,
         },
     },
     relations: {
         user: {
-            target: 'user',
+            target: 'User',
             type: 'many-to-one',
             joinColumn: {
                 name: 'user_id',
+            },
+            onDelete: 'RESTRICT',
+
+        },
+        term: {
+            target: 'Term',
+            type: 'many-to-one',
+            joinColumn: {
+                name: 'term_id',
             },
             onDelete: 'RESTRICT',
 

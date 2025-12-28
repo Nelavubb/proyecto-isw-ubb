@@ -6,6 +6,7 @@ export interface User {
     rut: string;
     user_name: string;
     role: string;
+    email?: string;
 }
 
 export const getUsers = async (): Promise<User[]> => {

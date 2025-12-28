@@ -1,9 +1,13 @@
 import api from '../api/axios.config';
 
+import { Term } from './termService';
+
 export interface Subject {
     subject_id: number;
     subject_name: string;
     user_id: number;
+    term_id: number;
+    term?: Term;
 }
 
 export const getAllSubjects = async (): Promise<Subject[]> => {
@@ -21,12 +25,12 @@ export const getSubjectsByUser = async (userId: number): Promise<Subject[]> => {
     return response.data;
 };
 
-export const createSubject = async (data: { subject_name: string; user_id: number }): Promise<Subject> => {
+export const createSubject = async (data: { subject_name: string; user_id: number; term_id: number }): Promise<Subject> => {
     const response = await api.post('/subjects', data);
     return response.data;
 };
 
-export const updateSubject = async (id: number, data: { subject_name: string; user_id: number }): Promise<Subject> => {
+export const updateSubject = async (id: number, data: { subject_name: string; user_id: number; term_id: number }): Promise<Subject> => {
     const response = await api.put(`/subjects/${id}`, data);
     return response.data;
 };

@@ -53,11 +53,7 @@ export default function SubjectSelectionAdmin() {
 
     const handleEditClick = (e: React.MouseEvent, subject: Subject) => {
         e.stopPropagation();
-        setEditingSubject(subject);
-        setNewSubjectName(subject.subject_name);
-        setSelectedTeacherId(subject.user_id);
-        setErrors([]);
-        setShowModal(true);
+        navigate(`/admin/subjects/${subject.subject_id}`);
     };
 
     const handleDeleteClick = async (e: React.MouseEvent, subjectId: number) => {
@@ -120,13 +116,15 @@ export default function SubjectSelectionAdmin() {
             if (editingSubject) {
                 await updateSubject(editingSubject.subject_id, {
                     subject_name: newSubjectName,
-                    user_id: Number(selectedTeacherId)
+                    user_id: Number(selectedTeacherId),
+                    term_id: 1 // Default or selected
                 });
                 setToast({ type: 'success', text: 'Asignatura actualizada exitosamente' });
             } else {
                 await createSubject({
                     subject_name: newSubjectName,
-                    user_id: Number(selectedTeacherId)
+                    user_id: Number(selectedTeacherId),
+                    term_id: 1 // Default or selected
                 });
                 setToast({ type: 'success', text: 'Asignatura creada exitosamente' });
             }

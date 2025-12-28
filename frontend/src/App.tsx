@@ -16,6 +16,7 @@ import Comisiones from "./pages/Comisiones";
 import AddGuidelines from "./pages/AddGuidelines";
 import SubjectSelectionTeacher from "./pages/SubjectSelectionTeacher";
 import SubjectSelectionAdmin from "./pages/SubjectSelectionAdmin";
+import SubjectDetailsAdmin from "./pages/SubjectDetailsAdmin";
 import Users from "./pages/Users";
 import HistorySubjectSelect from "./pages/HistorySubjectSelect";
 import HistoryEvaluationList from "./pages/HistoryEvaluationList";
@@ -176,12 +177,21 @@ function App() {
             }
           />
 
+
           {/* Admin: Gestión de Asignaturas */}
           <Route
             path="/admin/subjects"
             element={
               <ProtectedRoute>
                 <SubjectSelectionAdmin />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/subjects/:id"
+            element={
+              <ProtectedRoute>
+                <SubjectDetailsAdmin />
               </ProtectedRoute>
             }
           />
