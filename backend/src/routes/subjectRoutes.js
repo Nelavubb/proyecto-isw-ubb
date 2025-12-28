@@ -22,8 +22,10 @@ router.get('/enrolled/:userId', async (req, res) => {
                 "ss",
                 "ss.subject_id = subject.subject_id"
             )
+            .innerJoin("subject.term", "t")
             .where("ss.user_id = :userId", { userId })
             .andWhere("ss.status = :status", { status: 'active' })
+            .andWhere("t.is_current = :isCurrent", { isCurrent: true })
             .getMany();
 
         res.json(subjects);
