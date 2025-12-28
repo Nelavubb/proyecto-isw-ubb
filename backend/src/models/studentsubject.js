@@ -27,7 +27,6 @@ export const Student_Subject = new EntitySchema({
             length: 50,
             nullable: false,
         },
-
     },
     relations: {
         user: {

@@ -72,6 +72,7 @@ router.get('/evaluations/:userId/:subjectId/:semester', async (req, res) => {
             .where("ed.user_id = :userId", { userId })
             .andWhere("t.subject_id = :subjectId", { subjectId })
             .andWhere("ss.semester = :semester", { semester })
+            .andWhere("ed.grade IS NOT NULL")
             .orderBy("c.date", "DESC")
             .getRawMany();
 
@@ -163,6 +164,7 @@ router.get('/recent/:userId', async (req, res) => {
                 "c.date"
             ])
             .where("ed.user_id = :userId", { userId })
+            .andWhere("ed.grade IS NOT NULL")
             .orderBy("c.date", "DESC")
             .limit(2)
             .getRawMany();
