@@ -35,8 +35,14 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ message: "El periodo ya existe" });
         }
 
+        // If setting as current, unset others
         if (is_current) {
-            await termRepository.update({}, { is_current: false });
+            await queryRunner.manager
+                .createQueryBuilder()
+                .update(Term)
+                .set({ is_current: false })
+                .where("is_current = :active", { active: true })
+                .execute();
         }
 
         const newTerm = termRepository.create({ code, is_current });
