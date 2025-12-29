@@ -13,6 +13,7 @@ export const Term = new EntitySchema({
             type: 'varchar',
             length: 10,
             nullable: false,
+            unique: true,
         },
         is_current: {
             type: 'boolean',
