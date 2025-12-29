@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
@@ -6,7 +7,7 @@ import { Subject, updateSubject, getSubjectsByUser, getAllSubjects } from '../se
 import { getUsers, User } from '../services/userService';
 import { getAllTerms, Term } from '../services/termService';
 import { StudentSubject, getAllStudentSubjects, enrollStudent, removeStudentFromSubject, updateStudentSubjectStatus } from '../services/studentSubjectService';
-import { Users as UsersIcon, GraduationCap, Calendar, Save, ArrowLeft, Trash2, Plus, CheckCircle, XCircle } from 'lucide-react';
+import { Users as UsersIcon, GraduationCap, Calendar, Save, ArrowLeft, Trash2, Plus, CheckCircle, XCircle, Search } from 'lucide-react';
 import api from '../api/axios.config';
 
 interface EnrolledStudent extends User {
@@ -33,7 +34,8 @@ const SubjectDetailsAdmin = () => {
 
     // Modal state for adding students
     const [showAddStudentModal, setShowAddStudentModal] = useState(false);
-    const [selectedStudentId, setSelectedStudentId] = useState<number>(0);
+    const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -141,22 +143,33 @@ const SubjectDetailsAdmin = () => {
         }
     };
 
-    const handleAddStudent = async () => {
-        if (!selectedStudentId) return;
+    const handleAddStudents = async () => {
+        if (selectedStudentIds.length === 0) return;
         try {
-            await enrollStudent({
-                user_id: selectedStudentId,
-                subject_id: parseInt(id!),
-                status: 'active'
-            });
-            setToast({ message: 'Estudiante inscrito correctamente', type: 'success' });
+            await Promise.all(selectedStudentIds.map(studentId =>
+                enrollStudent({
+                    user_id: studentId,
+                    subject_id: parseInt(id!),
+                    status: 'active'
+                })
+            ));
+            setToast({ message: `${selectedStudentIds.length} estudiante(s) inscrito(s) correctamente`, type: 'success' });
             setShowAddStudentModal(false);
-            setSelectedStudentId(0);
+            setSelectedStudentIds([]);
+            setSearchTerm('');
             fetchData();
         } catch (error) {
             console.error(error);
-            setToast({ message: 'Error al inscribir estudiante', type: 'error' });
+            setToast({ message: 'Error al inscribir estudiantes', type: 'error' });
         }
+    };
+
+    const toggleStudentSelection = (studentId: number) => {
+        setSelectedStudentIds(prev =>
+            prev.includes(studentId)
+                ? prev.filter(id => id !== studentId)
+                : [...prev, studentId]
+        );
     };
 
     const handleRemoveStudent = async (studentId: number) => {
@@ -444,48 +457,109 @@ const SubjectDetailsAdmin = () => {
                         </div>
                     )}
 
-                    {/* Add Student Modal */}
-                    {showAddStudentModal && (
-                        <div className="fixed inset-0 flex items-center justify-center z-50">
-                            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddStudentModal(false)}></div>
-                            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 z-10 relative animate-in fade-in zoom-in-95 duration-200">
-                                <h3 className="text-xl font-bold text-[#003366] mb-4">Inscribir Estudiante</h3>
 
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Seleccionar Estudiante</label>
-                                    <select
-                                        value={selectedStudentId}
-                                        onChange={(e) => setSelectedStudentId(parseInt(e.target.value))}
-                                        className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-[#003366] focus:border-[#003366] p-2"
-                                    >
-                                        <option value={0}>Seleccione...</option>
-                                        {availableStudents.map(s => (
-                                            <option key={s.user_id} value={s.user_id}>{s.user_name} - {s.rut}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="flex justify-end gap-3 mt-6">
-                                    <button
-                                        onClick={() => setShowAddStudentModal(false)}
-                                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        onClick={handleAddStudent}
-                                        disabled={!selectedStudentId}
-                                        className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition disabled:opacity-50"
-                                    >
-                                        Inscribir
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </div>
             </main>
             <BottomNavigation />
+
+            {/* Add Student Modal */}
+            {showAddStudentModal && createPortal(
+                <div className="fixed inset-0 flex items-center justify-center z-[9999]">
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddStudentModal(false)}></div>
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-0 z-10 relative animate-in fade-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="p-6 border-b border-gray-100">
+                            <h3 className="text-xl font-bold text-[#003366]">Asignar Estudiantes</h3>
+                            <p className="text-sm text-gray-500 mt-1">Seleccione los estudiantes para inscribir en la asignatura.</p>
+                        </div>
+
+                        <div className="p-6 flex-1 overflow-hidden flex flex-col">
+                            {/* Search Bar */}
+                            <div className="relative mb-4">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Search className="h-5 w-5 text-gray-400" />
+                                </div>
+                                <input
+                                    type="text"
+                                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-[#003366] focus:border-[#003366] sm:text-sm transition duration-150 ease-in-out"
+                                    placeholder="Buscar por nombre o RUT..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+
+                            {/* Student List */}
+                            <div className="border rounded-lg overflow-y-auto max-h-60 flex-1">
+                                <ul className="divide-y divide-gray-100">
+                                    {availableStudents
+                                        .filter(s =>
+                                            s.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                            s.rut.includes(searchTerm)
+                                        )
+                                        .length === 0 ? (
+                                        <li className="px-6 py-8 text-center text-gray-500 text-sm">
+                                            No se encontraron estudiantes disponibles.
+                                        </li>
+                                    ) : (
+                                        availableStudents
+                                            .filter(s =>
+                                                s.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                s.rut.includes(searchTerm)
+                                            )
+                                            .map(student => (
+                                                <li
+                                                    key={student.user_id}
+                                                    className={`px-4 py-3 flex items-start cursor-pointer hover:bg-gray-50 transition-colors ${selectedStudentIds.includes(student.user_id) ? 'bg-blue-50' : ''}`}
+                                                    onClick={() => toggleStudentSelection(student.user_id)}
+                                                >
+                                                    <div className="flex items-center h-5">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedStudentIds.includes(student.user_id)}
+                                                            readOnly
+                                                            className="focus:ring-[#003366] h-4 w-4 text-[#003366] border-gray-300 rounded"
+                                                        />
+                                                    </div>
+                                                    <div className="ml-3 text-sm">
+                                                        <label className={`font-medium text-gray-700 cursor-pointer ${selectedStudentIds.includes(student.user_id) ? 'text-[#003366]' : ''}`}>
+                                                            {student.user_name}
+                                                        </label>
+                                                        <p className="text-gray-500">{student.rut}</p>
+                                                    </div>
+                                                </li>
+                                            ))
+                                    )}
+                                </ul>
+                            </div>
+
+                            <div className="mt-2 text-xs text-gray-500">
+                                {selectedStudentIds.length} estudiante(s) seleccionado(s)
+                            </div>
+                        </div>
+
+                        <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t border-gray-100">
+                            <button
+                                onClick={() => {
+                                    setShowAddStudentModal(false);
+                                    setSelectedStudentIds([]);
+                                    setSearchTerm('');
+                                }}
+                                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-white transition font-medium"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleAddStudents}
+                                disabled={selectedStudentIds.length === 0}
+                                className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                <Plus className="w-4 h-4" />
+                                Inscribir
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 };

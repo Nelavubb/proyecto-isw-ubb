@@ -181,26 +181,26 @@ const ProfesorDashboard = ({ user }: ProfesorDashboardProps) => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          {/* Evaluaciones Pendientes */}
+          {/* Gestionar Evaluaciones */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Evaluaciones Pendientes de Calificar</h3>
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Gestionar Evaluaciones</h3>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                   </svg>
-                  <span className="text-gray-800 font-medium">3 evaluaciones sin calificar.</span>
+                  <span className="text-gray-800 font-medium">Ver y gestionar evaluaciones.</span>
                 </div>
-                <button className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm">
-                  Ver ahora
-                </button>
+                <Link to="/evaluaciones" className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm">
+                  Gestionar
+                </Link>
               </div>
             </div>
           </div>
 
-          {/* Agregar Preguntas */}
+          {/* Gestionar Asignaturas */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Gestionar Asignaturas</h3>
 

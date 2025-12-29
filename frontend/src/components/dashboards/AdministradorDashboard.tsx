@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { createUser, getUsers, User as ServiceUser } from '../../services/userService';
 import { createSubject } from '../../services/subjectService';
 import { getDashboardStats, DashboardStats } from '../../services/dashboardService';
+import { getAllTerms, Term } from '../../services/termService';
 import { Link } from 'react-router-dom';
 
 // Función para generar contraseña usando los últimos 6 dígitos del RUT
@@ -49,7 +50,8 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [teachers, setTeachers] = useState<ServiceUser[]>([]);
-  
+  const [terms, setTerms] = useState<Term[]>([]);
+
   // Estados para estadísticas del dashboard
   const [stats, setStats] = useState<DashboardStats>({
     studentsCount: 0,
@@ -68,7 +70,8 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
 
   const [subjectFormData, setSubjectFormData] = useState({
     subject_name: '',
-    user_id: '' as number | ''
+    user_id: '' as number | '',
+    term_id: '' as number | ''
   });
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -88,17 +91,21 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
     fetchDashboardData();
   }, []);
 
-  // Cargar profesores para el modal de asignaturas
+  // Cargar profesores y periodos para el modal de asignaturas
   useEffect(() => {
-    const fetchTeachers = async () => {
+    const fetchData = async () => {
       try {
-        const users = await getUsers();
+        const [users, allTerms] = await Promise.all([
+          getUsers(),
+          getAllTerms()
+        ]);
         setTeachers(users.filter(u => u.role === 'Profesor'));
+        setTerms(allTerms);
       } catch (error) {
-        console.error("Error fetching teachers:", error);
+        console.error("Error fetching data:", error);
       }
     };
-    fetchTeachers();
+    fetchData();
   }, []);
 
   const handleCloseModal = () => {
@@ -108,7 +115,7 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
 
   const handleCloseSubjectModal = () => {
     setShowSubjectModal(false);
-    setSubjectFormData({ subject_name: '', user_id: '' });
+    setSubjectFormData({ subject_name: '', user_id: '', term_id: '' });
     setErrors([]);
   };
 
@@ -122,14 +129,21 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
       if (trimmedName.length < 2) {
         newErrors.push('El nombre debe tener al menos 2 caracteres');
       }
+      if (trimmedName.length > 300) {
+        newErrors.push('El nombre no puede exceder los 300 caracteres');
+      }
       const nameRegex = /^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s-]+$/;
       if (!nameRegex.test(trimmedName)) {
-        newErrors.push('El nombre contiene caracteres no válidos (solo letras, números, espacios y guiones)');
+        newErrors.push('El nombre contiene caracteres no válidos (solo letras, números, espacios, guiones y tildes)');
       }
     }
 
     if (!subjectFormData.user_id) {
       newErrors.push('Debe seleccionar un profesor');
+    }
+
+    if (!subjectFormData.term_id) {
+      newErrors.push('Debe seleccionar un periodo académico');
     }
 
     if (newErrors.length > 0) {
@@ -141,7 +155,7 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
       await createSubject({
         subject_name: trimmedName,
         user_id: Number(subjectFormData.user_id),
-        term_id: 1 // Default term
+        term_id: Number(subjectFormData.term_id)
       });
       setToast({ type: 'success', text: 'Asignatura creada exitosamente' });
       handleCloseSubjectModal();
@@ -266,7 +280,7 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
             <h3 className="text-xl font-bold text-gray-800 mb-4">Gestión de Comisiones</h3>
             <p className="text-gray-600 mb-4">Administra las comisiones de evaluación.</p>
             <div className="space-y-3">
-              <button 
+              <button
                 onClick={() => navigate('/comisiones?step=crear')}
                 className="w-full px-4 py-3 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-left flex items-center gap-3">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -274,7 +288,7 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
                 </svg>
                 Crear Nueva Comisión
               </button>
-              <button 
+              <button
                 onClick={() => navigate('/comisiones')}
                 className="w-full px-4 py-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-left flex items-center gap-3">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -479,7 +493,7 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
                   }}
                   maxLength={300}
                   placeholder="Ej. Derecho Civil I"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003366] focus:border-transparent outline-none transition-all"
                 />
                 <div className="flex justify-end mt-1">
                   <span className={`text-xs ${subjectFormData.subject_name.length >= 300 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
@@ -495,12 +509,30 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
                 <select
                   value={subjectFormData.user_id}
                   onChange={(e) => setSubjectFormData({ ...subjectFormData, user_id: Number(e.target.value) })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003366] focus:border-transparent outline-none transition-all"
                 >
                   <option value="">Seleccionar Profesor</option>
                   {teachers.map((teacher) => (
                     <option key={teacher.user_id} value={teacher.user_id}>
                       {teacher.user_name} ({teacher.rut})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Periodo Académico <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={subjectFormData.term_id}
+                  onChange={(e) => setSubjectFormData({ ...subjectFormData, term_id: Number(e.target.value) })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003366] focus:border-transparent outline-none transition-all"
+                >
+                  <option value="">Seleccione un periodo...</option>
+                  {terms.map((term) => (
+                    <option key={term.term_id} value={term.term_id}>
+                      {term.code} {term.is_current ? '(Actual)' : ''}
                     </option>
                   ))}
                 </select>
