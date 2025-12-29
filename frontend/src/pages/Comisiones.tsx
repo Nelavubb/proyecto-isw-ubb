@@ -160,6 +160,7 @@ export default function Comisiones() {
             comisiones,
             nuevaComision,
             vistaActual,
+            estudiantes, // Guardar estudiantes de la asignatura
         };
         sessionStorage.setItem('comisionesFormData', JSON.stringify(dataToSave));
         navigate(url);
@@ -188,6 +189,7 @@ export default function Comisiones() {
                 if (data.comisiones) setComisiones(data.comisiones);
                 if (data.nuevaComision) setNuevaComision(data.nuevaComision);
                 if (data.vistaActual) setVistaActual(data.vistaActual);
+                if (data.estudiantes) setEstudiantes(data.estudiantes); // Restaurar estudiantes
                 // Limpiar los datos guardados después de restaurarlos
                 sessionStorage.removeItem('comisionesFormData');
             } catch (error) {
@@ -423,6 +425,56 @@ export default function Comisiones() {
                 ? prev.estudiantesSeleccionados.filter(id => id !== estudianteId)
                 : [...prev.estudiantesSeleccionados, estudianteId]
         }));
+    };
+
+    // Función para abrir el modal de nueva comisión desde la vista crear
+    const handleAbrirModalNuevaComisionCrear = async () => {
+        // Si ya hay estudiantes cargados (del tema seleccionado), usar esos
+        if (estudiantes.length > 0) {
+            setModalContext('crear');
+            setModoEdicion(false);
+            setComisionEditandoId(null);
+            setNuevaComision({
+                fecha: '',
+                hora: '',
+                modalidad: 'presencial',
+                lugar: '',
+                estudiantesSeleccionados: [],
+            });
+            setShowModal(true);
+            return;
+        }
+
+        // Si no hay estudiantes y hay un tema seleccionado, cargarlos
+        if (temaSeleccionado?.subjectId) {
+            try {
+                setLoadingEstudiantes(true);
+                const data = await getStudentsBySubject(temaSeleccionado.subjectId);
+                const estudiantesTransformados: Estudiante[] = data.map((e: EstudianteAPI) => ({
+                    id: e.user_id,
+                    nombre: e.user_name,
+                    rut: e.rut || 'Sin RUT',
+                }));
+                setEstudiantes(estudiantesTransformados);
+            } catch (error) {
+                console.error('Error al cargar estudiantes:', error);
+                setEstudiantes([]);
+            } finally {
+                setLoadingEstudiantes(false);
+            }
+        }
+
+        setModalContext('crear');
+        setModoEdicion(false);
+        setComisionEditandoId(null);
+        setNuevaComision({
+            fecha: '',
+            hora: '',
+            modalidad: 'presencial',
+            lugar: '',
+            estudiantesSeleccionados: [],
+        });
+        setShowModal(true);
     };
 
     const handleCrearEvaluacion = () => {
@@ -1584,7 +1636,7 @@ export default function Comisiones() {
                                         <h2 className="text-lg font-bold text-[#003366]">Gestión de Comisiones</h2>
                                     </div>
                                     <button
-                                        onClick={() => { setModalContext('crear'); setShowModal(true); }}
+                                        onClick={handleAbrirModalNuevaComisionCrear}
                                         className="inline-flex items-center px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm font-bold"
                                     >
                                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

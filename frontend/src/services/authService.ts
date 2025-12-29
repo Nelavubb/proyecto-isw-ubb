@@ -26,7 +26,7 @@ class AuthService {
 
   private mapRole(rol: string): 'Estudiante' | 'Profesor' | 'Administrador' {
     const roleMap: { [key: string]: 'Estudiante' | 'Profesor' | 'Administrador' } = {
-      'estudiante': 'Estudiante',
+      'estudiante': 'Estudiante', 
       'Estudiante': 'Estudiante',
       'profesor': 'Profesor',
       'Profesor': 'Profesor',

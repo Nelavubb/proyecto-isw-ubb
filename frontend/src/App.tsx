@@ -8,7 +8,6 @@ import { AuthProvider } from "./context/AuthContext";
 import { useAuth } from "./hooks/useAuth";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import Evaluaciones from "./pages/Evaluaciones";
 import Practice from "./pages/Practice";
 import RealizacionEvaluacion from "./pages/RealizarEvaluacion";
 import SubjectSelect from "./pages/SubjectSelect";
@@ -87,14 +86,6 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/evaluaciones"
-            element={
-              <ProtectedRoute>
-                <Evaluaciones />
               </ProtectedRoute>
             }
           />

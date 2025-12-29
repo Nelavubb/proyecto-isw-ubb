@@ -20,21 +20,6 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // Si ambos campos están vacíos → Modo desarrollo
-      if (!rut.trim() && !password.trim()) {
-        const mockUser: User = {
-          id: '1',
-          name: 'Usuario de Prueba',
-          rut: '12345678-9',
-          role: selectedRole
-        };
-        const mockToken = 'mock-jwt-token-' + selectedRole;
-
-        loginDev(mockUser, mockToken);
-        navigate('/dashboard');
-        return;
-      }
-
       // Si alguno de los campos tiene contenido → Login real
       if (!rut.trim() || !password.trim()) {
         setError('Por favor ingrese RUT y contraseña');
@@ -63,7 +48,7 @@ const Login = () => {
           {/* Welcome Section */}
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-gray-800 mb-2">Bienvenido</h2>
-            <p className="text-gray-600">Inicie sesión para acceder al sistema.</p>
+            <p className="text-gray-600">Inicie sesión para acceder al sistema</p>
           </div>
 
           {/* Login Form */}
@@ -74,42 +59,13 @@ const Login = () => {
                 <p className="text-sm">{error}</p>
               </div>
             )}
-
-            {/* Development Mode Notice */}
-            <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-xs text-blue-700">
-                <strong>Modo desarrollo:</strong> Deje los campos vacíos para acceso rápido,
-                o ingrese credenciales para login real.
-              </p>
-            </div>
-
-            {/* Role Selector */}
-            <div className="mb-6">
-              <label
-                htmlFor="role"
-                className="block text-gray-700 font-semibold mb-2"
-              >
-                Rol (Solo para modo desarrollo)
-              </label>
-              <select
-                id="role"
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value as 'Estudiante' | 'Profesor' | 'Administrador')}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="Estudiante">Estudiante</option>
-                <option value="Profesor">Profesor</option>
-                <option value="Administrador">Administrador</option>
-              </select>
-            </div>
-
             {/* RUT Field */}
             <div className="mb-6">
               <label
                 htmlFor="rut"
                 className="block text-gray-700 font-semibold mb-2"
               >
-                RUT <span className="text-gray-500 font-normal text-sm">(vacío = modo desarrollo)</span>
+                RUT <span className="text-gray-500 font-normal text-sm">(Sin puntos y con guión)</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -144,7 +100,7 @@ const Login = () => {
                 htmlFor="password"
                 className="block text-gray-700 font-semibold mb-2"
               >
-                Contraseña <span className="text-gray-500 font-normal text-sm">(vacío = modo desarrollo)</span>
+                Contraseña
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
