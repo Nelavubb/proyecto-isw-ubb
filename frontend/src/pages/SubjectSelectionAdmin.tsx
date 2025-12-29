@@ -316,8 +316,7 @@ export default function SubjectSelectionAdmin() {
                             {subjects.map((subject) => (
                                 <div
                                     key={subject.subject_id}
-                                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow"
-                                    onClick={() => handleSelectSubject(subject.subject_id)}
+                                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4"
                                 >
                                     <div className="p-3 bg-blue-50 rounded-lg">
                                         {getIcon()}
