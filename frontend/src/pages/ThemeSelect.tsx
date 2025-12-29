@@ -35,7 +35,7 @@ const ThemeSelect: React.FC = () => {
 
     const handleSelectTheme = (id: number, name: string) => {
         console.log(`Tema seleccionado: ${id}, Dificultad: ${difficulty}`);
-        navigate(`/practice/quiz/${id}`, { state: { themeName: name, difficulty } });
+        navigate(`/practice/quiz/${id}`, { state: { themeName: name, difficulty, subjectId } });
     };
 
     // Función auxiliar para dar iconos dinámicos según el tema
