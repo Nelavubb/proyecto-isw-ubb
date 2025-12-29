@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
+import ComisionModal from '../components/comisiones/ComisionModal';
+import ToastNotifications from '../components/comisiones/ToastNotifications';
 import { getGuidelines, Guideline } from '../services/guidelineService';
 import { getAllThemes, Theme } from '../services/themeService';
 import { getAllSubjects, getSubjectsByUser, Subject } from '../services/subjectService';
@@ -18,6 +20,7 @@ import {
 } from '../services/commissionService';
 import { getCommissionResults, CommissionResult } from '../services/evaluationService';
 import { useAuth } from '../hooks/useAuth';
+import { formatDate, formatDateShort, resetComisionForm } from '../utils/comisionHelpers';
 //#endregion
 
 //#region INTERFACES
@@ -62,6 +65,13 @@ interface Evaluacion {
     totalEstudiantes: number;
     profesorNombre?: string;
     profesorId?: number; // ID del profesor dueño de la evaluación
+}
+
+// Interface para notificaciones toast
+interface Toast {
+    id: number;
+    type: 'success' | 'error' | 'warning' | 'info';
+    message: string;
 }
 
 //#endregion
@@ -122,6 +132,24 @@ export default function Comisiones() {
     // Estado para modo edición
     const [modoEdicion, setModoEdicion] = useState(false);
     const [comisionEditandoId, setComisionEditandoId] = useState<number | null>(null);
+
+    // Estado para notificaciones toast
+    const [toasts, setToasts] = useState<Toast[]>([]);
+
+    // Función para mostrar notificaciones toast
+    const showToast = (type: Toast['type'], message: string) => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, type, message }]);
+        // Auto-remover después de 4 segundos
+        setTimeout(() => {
+            setToasts(prev => prev.filter(t => t.id !== id));
+        }, 4000);
+    };
+
+    // Función para remover toast manualmente
+    const removeToast = (id: number) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    };
 
     // Estado para ver resultados de comisiones evaluadas
     const [resultadosExpandidos, setResultadosExpandidos] = useState<{ [key: number]: CommissionResult[] }>({});
@@ -500,7 +528,26 @@ export default function Comisiones() {
     };
 
     const handleGuardarEvaluacion = async () => {
-        if (!temaSeleccionado || comisiones.length === 0 || !user?.id) return;
+        // Validaciones
+        if (!temaSeleccionado) {
+            showToast('error', 'Debe seleccionar un tema para la evaluación');
+            return;
+        }
+        
+        if (!pautaSeleccionada) {
+            showToast('error', 'El tema seleccionado debe tener una pauta asignada antes de crear la evaluación');
+            return;
+        }
+        
+        if (comisiones.length === 0) {
+            showToast('error', 'Debe crear al menos una comisión para la evaluación');
+            return;
+        }
+        
+        if (!user?.id) {
+            showToast('error', 'Error de autenticación. Por favor, inicie sesión nuevamente');
+            return;
+        }
 
         try {
             const currentUserId = parseInt(user.id);
@@ -519,7 +566,7 @@ export default function Comisiones() {
             for (let i = 0; i < comisiones.length; i++) {
                 const comision = comisiones[i];
                 const commissionData = {
-                    commission_name: `Comisión ${i + 1} - ${temaSeleccionado.nombre} - ${timestamp}`,
+                    commission_name: `Comisión ${i + 1} - ${temaSeleccionado.nombre}`,
                     user_id: ownerUserId,
                     theme_id: temaSeleccionado.id,
                     guideline_id: pautaSeleccionada?.guidline_id,
@@ -536,10 +583,11 @@ export default function Comisiones() {
 
             // Recargar las comisiones desde el backend
             await loadComisiones();
+            showToast('success', 'Evaluación creada exitosamente');
             handleVolverALista();
         } catch (error) {
             console.error('Error al guardar evaluación:', error);
-            alert('Error al guardar la evaluación. Por favor, intente de nuevo.');
+            showToast('error', 'Error al guardar la evaluación. Por favor, intente de nuevo.');
         }
     };
 
@@ -646,6 +694,7 @@ export default function Comisiones() {
                 setVistaActual('lista');
                 // Recargar la lista de evaluaciones
                 loadComisiones();
+                showToast('success', 'Comisión eliminada. La evaluación fue removida al no tener comisiones.');
             } else {
                 // Actualizar la evaluación seleccionada
                 setEvaluacionSeleccionada({
@@ -653,21 +702,69 @@ export default function Comisiones() {
                     comisiones: nuevasComisiones,
                     totalEstudiantes: nuevasComisiones.reduce((acc, c) => acc + c.estudiantes.length, 0),
                 });
+                showToast('success', 'Comisión eliminada exitosamente');
             }
         } catch (error) {
             console.error('Error al eliminar comisión:', error);
-            alert('Error al eliminar la comisión. Intente nuevamente.');
+            showToast('error', 'Error al eliminar la comisión. Intente nuevamente.');
         }
     };
 
     // Función unificada para agregar/editar comisión (funciona para ambos contextos)
     const handleAgregarComision = async () => {
+        // Validación 1: Campos obligatorios
         if (!nuevaComision.fecha || !nuevaComision.hora || !nuevaComision.lugar) {
-            alert('Por favor complete todos los campos obligatorios');
+            const campoFaltante = nuevaComision.modalidad === 'online' ? 'enlace' : 'lugar';
+            showToast('error', `Por favor complete todos los campos obligatorios (fecha, hora y ${campoFaltante})`);
             return;
         }
+        
+        // Validación 2: Fecha no puede ser en el pasado
+        const fechaSeleccionada = new Date(nuevaComision.fecha);
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        if (fechaSeleccionada < hoy) {
+            showToast('error', 'La fecha de la comisión no puede ser anterior a hoy');
+            return;
+        }
+        
+        // Validación 3: Longitud del lugar/enlace (mínimo 3, máximo 300 caracteres)
+        if (nuevaComision.lugar.trim().length < 3) {
+            const campo = nuevaComision.modalidad === 'online' ? 'enlace' : 'lugar';
+            showToast('error', `El ${campo} debe tener al menos 3 caracteres`);
+            return;
+        }
+        if (nuevaComision.lugar.trim().length > 300) {
+            const campo = nuevaComision.modalidad === 'online' ? 'enlace' : 'lugar';
+            showToast('error', `El ${campo} no puede exceder los 300 caracteres`);
+            return;
+        }
+        
+        // Validación 4: Al menos un estudiante seleccionado
         if (nuevaComision.estudiantesSeleccionados.length === 0) {
-            alert('Debe seleccionar al menos un estudiante');
+            showToast('error', 'Debe seleccionar al menos un estudiante');
+            return;
+        }
+        
+        // Validación 5: Verificar que los estudiantes no estén duplicados en otras comisiones
+        const estudiantesEnOtrasComisiones = modalContext === 'crear' 
+            ? comisiones
+                .filter(c => !modoEdicion || c.id !== comisionEditandoId)
+                .flatMap(c => c.estudiantes.map(e => e.id))
+            : evaluacionSeleccionada?.comisiones
+                .filter(c => !modoEdicion || c.id !== comisionEditandoId)
+                .flatMap(c => c.estudiantes.map(e => e.id)) || [];
+        
+        const estudiantesDuplicados = nuevaComision.estudiantesSeleccionados.filter(
+            id => estudiantesEnOtrasComisiones.includes(id)
+        );
+        
+        if (estudiantesDuplicados.length > 0) {
+            const nombresDuplicados = estudiantes
+                .filter(e => estudiantesDuplicados.includes(e.id))
+                .map(e => e.nombre)
+                .join(', ');
+            showToast('warning', `Los siguientes estudiantes ya están asignados a otra comisión: ${nombresDuplicados}`);
             return;
         }
 
@@ -700,7 +797,7 @@ export default function Comisiones() {
                     const numComision = evaluacionSeleccionada.comisiones.length + 1;
                     
                     const commissionData = {
-                        commission_name: `Comisión ${numComision} - ${evaluacionSeleccionada.tema.nombre} - ${Date.now()}`,
+                        commission_name: `Comisión ${numComision} - ${evaluacionSeleccionada.tema.nombre}`,
                         user_id: ownerUserId,
                         theme_id: evaluacionSeleccionada.tema.id,
                         date: nuevaComision.fecha,
@@ -771,11 +868,11 @@ export default function Comisiones() {
                     estudiantesSeleccionados: [],
                 });
                 setSearchEstudiante('');
-                alert(modoEdicion ? 'Comisión actualizada exitosamente' : 'Comisión agregada exitosamente');
+                showToast('success', modoEdicion ? 'Comisión actualizada exitosamente' : 'Comisión agregada exitosamente');
             } catch (error: any) {
                 console.error('Error al guardar comisión:', error);
                 const errorMessage = error?.response?.data?.details || error?.response?.data?.error || error?.message || 'Error desconocido';
-                alert(`Error al guardar la comisión: ${errorMessage}`);
+                showToast('error', `Error al guardar la comisión: ${errorMessage}`);
             }
         } else {
             // Contexto: creación de nueva evaluación (comisiones locales)
@@ -849,16 +946,6 @@ export default function Comisiones() {
             e.nombre.toLowerCase().includes(searchEstudiante.toLowerCase()) ||
             e.rut.includes(searchEstudiante)
         );
-
-    const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr + 'T00:00:00');
-        return date.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    };
-
-    const formatDateShort = (dateStr: string) => {
-        const date = new Date(dateStr + 'T00:00:00');
-        return date.toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' });
-    };
 
     const getEstadoBadge = (estado: Evaluacion['estado']) => {
         switch (estado) {
@@ -985,6 +1072,7 @@ export default function Comisiones() {
                     </div>
                 </main>
 
+                <ToastNotifications toasts={toasts} onRemove={removeToast} />
                 <BottomNavigation />
             </div>
         );
@@ -1140,7 +1228,7 @@ export default function Comisiones() {
                                                                     // Si no tiene rol específico, usar el primer estudiante
                                                                     navigate(`/RealizarEvaluacion?commission_id=${comision.id}&theme_id=${evaluacionSeleccionada.tema.id}&user_id=${comision.estudiantes[0].id}`);
                                                                 } else {
-                                                                    alert('No hay estudiantes asignados a esta comisión');
+                                                                    showToast('warning', 'No hay estudiantes asignados a esta comisión');
                                                                 }
                                                             }}
                                                             className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
@@ -1295,214 +1383,26 @@ export default function Comisiones() {
                     </div>
                 </main>
 
-                {/* Modal de Nueva Comisión (compartido) */}
-                {showModal && (
-                    <div className="fixed inset-0 flex items-center justify-center z-50">
-                        <div
-                            className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
-                        />
+                <ComisionModal
+                    show={showModal}
+                    modoEdicion={modoEdicion}
+                    modalContext={modalContext}
+                    nuevaComision={nuevaComision}
+                    estudiantes={estudiantes}
+                    loadingEstudiantes={loadingEstudiantes}
+                    searchEstudiante={searchEstudiante}
+                    onClose={() => {
+                        setShowModal(false);
+                        setModoEdicion(false);
+                        setComisionEditandoId(null);
+                        setNuevaComision(resetComisionForm());
+                    }}
+                    onSubmit={handleAgregarComision}
+                    onChange={setNuevaComision}
+                    onSearchChange={setSearchEstudiante}
+                />
 
-                        <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 p-6 z-10 relative animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
-                            <div className="flex items-center justify-between mb-6">
-                                <div>
-                                    <h3 className="text-xl font-bold text-[#003366]">
-                                        {modoEdicion ? 'Editar Comisión' : 'Nueva Comisión'}
-                                    </h3>
-                                    {modalContext === 'detalle' && evaluacionSeleccionada && (
-                                        <p className="text-sm text-gray-500 mt-1">Evaluación: {evaluacionSeleccionada.tema.nombre}</p>
-                                    )}
-                                </div>
-                                <button
-                                    onClick={() => {
-                                        setShowModal(false);
-                                        setModoEdicion(false);
-                                        setComisionEditandoId(null);
-                                        setNuevaComision({
-                                            fecha: '',
-                                            hora: '',
-                                            modalidad: 'presencial',
-                                            lugar: '',
-                                            estudiantesSeleccionados: [],
-                                        });
-                                    }}
-                                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                                >
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <div className="space-y-5">
-                                {/* Fecha y Hora */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
-                                            Fecha <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={nuevaComision.fecha}
-                                            onChange={(e) => setNuevaComision({ ...nuevaComision, fecha: e.target.value })}
-                                            className="block w-full bg-gray-50 border border-gray-200 text-gray-700 py-3 px-4 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
-                                            Hora <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="time"
-                                            value={nuevaComision.hora}
-                                            onChange={(e) => setNuevaComision({ ...nuevaComision, hora: e.target.value })}
-                                            className="block w-full bg-gray-50 border border-gray-200 text-gray-700 py-3 px-4 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Modalidad */}
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
-                                        Modalidad <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="flex gap-4">
-                                        <label className={`flex-1 flex items-center justify-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition ${nuevaComision.modalidad === 'presencial' ? 'border-[#003366] bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                                            <input
-                                                type="radio"
-                                                name="modalidadDetalle"
-                                                value="presencial"
-                                                checked={nuevaComision.modalidad === 'presencial'}
-                                                onChange={(e) => setNuevaComision({ ...nuevaComision, modalidad: e.target.value as 'presencial' | 'online' })}
-                                                className="sr-only"
-                                            />
-                                            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            </svg>
-                                            <span className="font-medium text-gray-700">Presencial</span>
-                                        </label>
-                                        <label className={`flex-1 flex items-center justify-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition ${nuevaComision.modalidad === 'online' ? 'border-[#003366] bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                                            <input
-                                                type="radio"
-                                                name="modalidadDetalle"
-                                                value="online"
-                                                checked={nuevaComision.modalidad === 'online'}
-                                                onChange={(e) => setNuevaComision({ ...nuevaComision, modalidad: e.target.value as 'presencial' | 'online' })}
-                                                className="sr-only"
-                                            />
-                                            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                            </svg>
-                                            <span className="font-medium text-gray-700">Online</span>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                {/* Lugar / Enlace */}
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
-                                        {nuevaComision.modalidad === 'presencial' ? 'Lugar Físico' : 'Enlace de Reunión'} <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type={nuevaComision.modalidad === 'online' ? 'url' : 'text'}
-                                        value={nuevaComision.lugar}
-                                        onChange={(e) => setNuevaComision({ ...nuevaComision, lugar: e.target.value })}
-                                        className="block w-full bg-gray-50 border border-gray-200 text-gray-700 py-3 px-4 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-[#003366] focus:ring-1 focus:ring-[#003366] transition"
-                                        placeholder={nuevaComision.modalidad === 'presencial' ? 'Ej: Sala 301, Edificio de Derecho' : 'Ej: https://meet.google.com/...'}
-                                    />
-                                </div>
-
-                                {/* Selector de Estudiantes */}
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
-                                        Asignar Estudiantes <span className="text-red-500">*</span>
-                                    </label>
-
-                                    {/* Buscador */}
-                                    <div className="relative mb-3">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                            </svg>
-                                        </div>
-                                        <input
-                                            type="text"
-                                            value={searchEstudiante}
-                                            onChange={(e) => setSearchEstudiante(e.target.value)}
-                                            className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-[#003366] focus:ring-1 focus:ring-[#003366] text-sm transition"
-                                            placeholder="Buscar por nombre o RUT..."
-                                        />
-                                    </div>
-
-                                    {/* Lista de Estudiantes */}
-                                    <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
-                                        {loadingEstudiantes ? (
-                                            <p className="p-3 text-sm text-gray-500 text-center">Cargando estudiantes...</p>
-                                        ) : estudiantesFiltrados.length === 0 ? (
-                                            <p className="p-3 text-sm text-gray-500 text-center">No hay estudiantes disponibles</p>
-                                        ) : (
-                                            estudiantesFiltrados.map((estudiante) => (
-                                                <label
-                                                    key={estudiante.id}
-                                                    className={`flex items-center gap-3 p-3 cursor-pointer transition ${nuevaComision.estudiantesSeleccionados.includes(estudiante.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={nuevaComision.estudiantesSeleccionados.includes(estudiante.id)}
-                                                        onChange={() => handleToggleEstudiante(estudiante.id)}
-                                                        className="w-4 h-4 text-[#003366] border-gray-300 rounded focus:ring-[#003366]"
-                                                    />
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-medium text-gray-900 truncate">{estudiante.nombre}</p>
-                                                        <p className="text-xs text-gray-500">{estudiante.rut}</p>
-                                                    </div>
-                                                </label>
-                                            ))
-                                        )}
-                                    </div>
-
-                                    <p className="text-xs text-gray-500 mt-2">
-                                        {nuevaComision.estudiantesSeleccionados.length} estudiante(s) seleccionado(s)
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Acciones del Modal */}
-                            <div className="mt-6 flex gap-3 justify-end">
-                                <button
-                                    onClick={() => {
-                                        setShowModal(false);
-                                        setModoEdicion(false);
-                                        setComisionEditandoId(null);
-                                        setNuevaComision({
-                                            fecha: '',
-                                            hora: '',
-                                            modalidad: 'presencial',
-                                            lugar: '',
-                                            estudiantesSeleccionados: [],
-                                        });
-                                    }}
-                                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={handleAgregarComision}
-                                    disabled={!nuevaComision.fecha || !nuevaComision.hora || !nuevaComision.lugar || nuevaComision.estudiantesSeleccionados.length === 0}
-                                    className="px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={modoEdicion ? "M5 13l4 4L19 7" : "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"} />
-                                        </svg>
-                                        {modoEdicion ? 'Guardar Cambios' : 'Agregar Comisión'}
-                                    </span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
+                <ToastNotifications toasts={toasts} onRemove={removeToast} />
                 <BottomNavigation />
             </div>
         );
@@ -1947,6 +1847,7 @@ export default function Comisiones() {
                 </div>
             )}
 
+            <ToastNotifications toasts={toasts} onRemove={removeToast} />
             <BottomNavigation />
         </div>
     );
