@@ -21,6 +21,7 @@ import {
 import { getCommissionResults, CommissionResult } from '../services/evaluationService';
 import { useAuth } from '../hooks/useAuth';
 import { formatDate, formatDateShort, resetComisionForm } from '../utils/comisionHelpers';
+import { sanitizeString, sanitizeUrl, isValidInput } from '../utils/sanitize';
 //#endregion
 
 //#region INTERFACES
@@ -718,6 +719,22 @@ export default function Comisiones() {
             showToast('error', `Por favor complete todos los campos obligatorios (fecha, hora y ${campoFaltante})`);
             return;
         }
+
+        // Validación de seguridad: Sanitizar entrada del lugar
+        const lugarSanitizado = sanitizeString(nuevaComision.lugar.trim());
+        if (!isValidInput(lugarSanitizado)) {
+            showToast('error', 'El campo contiene caracteres no permitidos');
+            return;
+        }
+
+        // Si es modalidad online, validar que sea una URL válida
+        if (nuevaComision.modalidad === 'online') {
+            const urlSanitizada = sanitizeUrl(lugarSanitizado);
+            if (!urlSanitizada || urlSanitizada !== lugarSanitizado) {
+                showToast('error', 'Por favor ingrese una URL válida (debe comenzar con http:// o https://)');
+                return;
+            }
+        }
         
         // Validación 2: Fecha no puede ser en el pasado
         const fechaSeleccionada = new Date(nuevaComision.fecha);
@@ -729,12 +746,12 @@ export default function Comisiones() {
         }
         
         // Validación 3: Longitud del lugar/enlace (mínimo 3, máximo 300 caracteres)
-        if (nuevaComision.lugar.trim().length < 3) {
+        if (lugarSanitizado.length < 3) {
             const campo = nuevaComision.modalidad === 'online' ? 'enlace' : 'lugar';
             showToast('error', `El ${campo} debe tener al menos 3 caracteres`);
             return;
         }
-        if (nuevaComision.lugar.trim().length > 300) {
+        if (lugarSanitizado.length > 300) {
             const campo = nuevaComision.modalidad === 'online' ? 'enlace' : 'lugar';
             showToast('error', `El ${campo} no puede exceder los 300 caracteres`);
             return;
