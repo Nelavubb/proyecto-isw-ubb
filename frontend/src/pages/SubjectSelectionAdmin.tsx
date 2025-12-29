@@ -4,7 +4,7 @@ import BottomNavigation from '../components/BottomNavigation';
 import { useNavigate } from 'react-router-dom';
 import { getAllSubjects, createSubject, updateSubject, deleteSubject, Subject } from '../services/subjectService';
 import { getUsers, User } from '../services/userService';
-import { getAllTerms, Term, setCurrentTerm } from '../services/termService';
+import { getAllTerms, Term, setCurrentTerm, createTerm } from '../services/termService';
 import { Plus, Edit2, Trash2, GraduationCap, AlertTriangle } from "lucide-react";
 import { useAuth } from '../hooks/useAuth';
 
@@ -27,6 +27,13 @@ export default function SubjectSelectionAdmin() {
     // Term Switching State
     const [showTermWarning, setShowTermWarning] = useState(false);
     const [pendingTermId, setPendingTermId] = useState<number | null>(null);
+
+    // Term Creation State
+    const [showTermModal, setShowTermModal] = useState(false);
+    const [newTermCode, setNewTermCode] = useState('');
+    const [termYear, setTermYear] = useState('');
+    const [termSemester, setTermSemester] = useState('1');
+    const [termErrors, setTermErrors] = useState<string[]>([]);
 
     useEffect(() => {
         fetchData();
@@ -90,6 +97,51 @@ export default function SubjectSelectionAdmin() {
         setEditingSubject(null);
         setErrors([]);
         setToast(null);
+    };
+
+    const handleCloseTermModal = () => {
+        setShowTermModal(false);
+        setNewTermCode('');
+        setTermYear('');
+        setTermSemester('1');
+        setTermErrors([]);
+    };
+
+    const handleSaveTerm = async () => {
+        const year = termYear.trim();
+        const semester = termSemester.trim();
+        const newErrors: string[] = [];
+
+        if (!year || !semester) {
+            newErrors.push('Todos los campos son obligatorios');
+        } else {
+            if (!/^\d{4}$/.test(year)) {
+                newErrors.push('El año debe ser de 4 dígitos');
+            }
+            if (!/^\d{1}$/.test(semester)) {
+                newErrors.push('El semestre debe ser de 1 dígito');
+            }
+        }
+
+        if (newErrors.length > 0) {
+            setTermErrors(newErrors);
+            return;
+        }
+
+        const formattedCode = `${year}-${semester}`;
+
+        try {
+            await createTerm({ code: formattedCode, is_current: false });
+            setToast({ type: 'success', text: 'Periodo creado exitosamente' });
+            handleCloseTermModal();
+            fetchData();
+        } catch (error: any) {
+            console.error("Error creating term:", error);
+            const backendMsg = error.response?.data?.message || 'Error al crear el periodo';
+            setToast({ type: 'error', text: backendMsg });
+        } finally {
+            setTimeout(() => setToast(null), 3000);
+        }
     };
 
     const handleSaveSubject = async () => {
@@ -220,8 +272,8 @@ export default function SubjectSelectionAdmin() {
                             </p>
                         </div>
                         <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-                            <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-                                <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Periodo Actual:</span>
+                            <div className="flex items-center gap-1 bg-gray-50 px-2 py-1.5 rounded-lg border border-gray-200">
+                                <span className="text-xs font-medium text-gray-500 whitespace-nowrap uppercase tracking-wide">Periodo:</span>
                                 <select
                                     className="bg-transparent text-sm font-bold text-[#003366] focus:outline-none cursor-pointer"
                                     value={terms.find(t => t.is_current)?.term_id || ''}
@@ -231,6 +283,14 @@ export default function SubjectSelectionAdmin() {
                                         <option key={t.term_id} value={t.term_id}>{t.code}</option>
                                     ))}
                                 </select>
+                                <div className="w-px h-4 bg-gray-300"></div>
+                                <button
+                                    onClick={() => setShowTermModal(true)}
+                                    className="p-1 text-gray-500 hover:text-[#003366] hover:bg-gray-200 rounded transition-colors"
+                                    title="Agregar Nuevo Periodo"
+                                >
+                                    <Plus className="w-3.5 h-3.5" />
+                                </button>
                             </div>
                             <button
                                 onClick={() => {
@@ -425,6 +485,96 @@ export default function SubjectSelectionAdmin() {
                                 className="flex-1 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition-colors font-medium"
                             >
                                 {editingSubject ? 'Actualizar Asignatura' : 'Guardar Asignatura'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Term Modal */}
+            {showTermModal && (
+                <div className="fixed inset-0 flex items-center justify-center z-[80]">
+                    <div
+                        className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
+                        onClick={handleCloseTermModal}
+                    />
+
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6 z-10 relative animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-[#003366]">
+                                Agregar Nuevo Periodo
+                            </h2>
+                            <button
+                                onClick={handleCloseTermModal}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <span className="text-2xl">&times;</span>
+                            </button>
+                        </div>
+
+                        {termErrors.length > 0 && (
+                            <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-3 rounded-md">
+                                <ul className="text-sm text-red-700 list-disc pl-5">
+                                    {termErrors.map((error, index) => (
+                                        <li key={index}>{error}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Código del Periodo
+                                </label>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex-1">
+                                        <input
+                                            type="text"
+                                            value={termYear}
+                                            onChange={(e) => {
+                                                const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                                                setTermYear(val);
+                                                if (termErrors.length > 0) setTermErrors([]);
+                                            }}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003366] focus:border-transparent outline-none transition-all text-center"
+                                            placeholder="2025"
+                                            maxLength={4}
+                                        />
+                                    </div>
+                                    <span className="text-xl font-bold text-gray-400">-</span>
+                                    <div className="w-20">
+                                        <select
+                                            value={termSemester}
+                                            onChange={(e) => {
+                                                setTermSemester(e.target.value);
+                                                if (termErrors.length > 0) setTermErrors([]);
+                                            }}
+                                            className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003366] focus:border-transparent outline-none transition-all text-center appearance-none bg-white"
+                                        >
+                                            <option value="1">1</option>
+                                            <option value="2">2</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Año - Semestre
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex gap-3">
+                            <button
+                                onClick={handleCloseTermModal}
+                                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleSaveTerm}
+                                className="flex-1 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#004488] transition-colors font-medium"
+                            >
+                                Guardar Periodo
                             </button>
                         </div>
                     </div>
