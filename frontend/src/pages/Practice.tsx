@@ -85,15 +85,15 @@ const Practice: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col">
-            <Header />
-            <main className="flex-1 z-10 max-w-4xl mx-auto w-full p-6 pt-24 pb-24">
-                <div className="mb-8 bg-white rounded-lg shadow-md p-6">
-                    <div className="border-l-4 border-blue-900 pl-4">
-                        <h2 className="text-xl font-semibold text-gray-700">
+            <Header variant="default" title="Facultad de Derecho" />
+            <main className="flex-1 z-10 w-full px-4 sm:px-6 lg:px-8 pt-28 pb-24">
+                <div className="max-w-6xl mx-auto space-y-6">
+                    <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[#003366]">
+                        <h1 className="text-2xl font-bold text-[#003366] mb-1">
                             Práctica de {themeName}
-                        </h2>
+                        </h1>
                         <div className="flex items-center gap-2 mt-1">
-                            <p className="text-gray-500 text-sm">
+                            <p className="text-sm text-gray-500">
                                 Responde las siguientes preguntas para practicar
                             </p>
                             {difficulty !== 'all' && (
@@ -103,19 +103,18 @@ const Practice: React.FC = () => {
                             )}
                         </div>
                     </div>
-                </div>
 
-                <div className="space-y-6">
-                    {questions.length === 0 && difficulty !== 'all' ? (
-                        <div className="text-center p-8 bg-white rounded-lg shadow-sm">
-                            <p className="text-gray-500">No hay preguntas disponibles para la dificultad seleccionada.</p>
-                        </div>
-                    ) : (
-                        questions.map((question, index) => (
-                            <div
-                                key={question.id_question}
-                                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
-                            >
+                    <div className="space-y-6">
+                        {questions.length === 0 && difficulty !== 'all' ? (
+                            <div className="text-center p-8 bg-white rounded-lg shadow-md">
+                                <p className="text-gray-500">No hay preguntas disponibles para la dificultad seleccionada.</p>
+                            </div>
+                        ) : (
+                            questions.map((question, index) => (
+                                <div
+                                    key={question.id_question}
+                                    className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow"
+                                >
                                 <div className="p-6">
                                     <div className="flex items-start gap-4">
                                         <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-800 rounded-full flex items-center justify-center font-bold text-sm">
@@ -160,14 +159,15 @@ const Practice: React.FC = () => {
                         )))}
                 </div>
 
-                <div className="mt-12 flex justify-center">
-                    <button
-                        onClick={goBack}
-                        className="px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2 text-sm"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        Volver
-                    </button>
+                    <div className="mt-8 flex justify-center">
+                        <button
+                            onClick={goBack}
+                            className="px-6 py-2.5 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm flex items-center justify-center gap-2"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Volver
+                        </button>
+                    </div>
                 </div>
             </main>
             <BottomNavigation />

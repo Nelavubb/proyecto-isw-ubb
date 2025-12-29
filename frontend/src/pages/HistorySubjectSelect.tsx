@@ -48,68 +48,68 @@ const HistorySubjectSelect: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col">
-            <Header />
-            <main className="flex-1 z-10 max-w-4xl mx-auto w-full p-6 pt-24 pb-24">
-                <div className="mb-8 bg-white rounded-lg shadow-md p-6">
-                    <div className="border-l-4 border-blue-900 pl-4">
-                        <h2 className="text-xl font-semibold text-gray-700">
+            <Header variant="default" title="Facultad de Derecho" />
+            <main className="flex-1 z-10 w-full px-4 sm:px-6 lg:px-8 pt-28 pb-24">
+                <div className="max-w-6xl mx-auto space-y-6">
+                    <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[#003366]">
+                        <h1 className="text-2xl font-bold text-[#003366] mb-1">
                             Historial de Asignaturas
-                        </h2>
-                        <p className="text-gray-500 text-sm mt-1">
+                        </h1>
+                        <p className="text-sm text-gray-500">
                             Todas las asignaturas que has cursado
                         </p>
                     </div>
-                </div>
-                {loading ? (
-                    // Estado de carga (Skeletons)
-                    <div className="grid gap-4">
-                        {[1, 2, 3].map((i) => (
-                            <div
-                                key={i}
-                                className="h-24 bg-gray-200 rounded-lg animate-pulse"
-                            ></div>
-                        ))}
-                    </div>
-                ) : subjects.length === 0 ? (
-                    // Sin asignaturas
-                    <div className="bg-white rounded-lg shadow-md p-8 text-center">
-                        <p className="text-gray-600">
-                            No tienes asignaturas en tu historial.
-                        </p>
-                        <button
-                            onClick={() => navigate("/dashboard")}
-                            className="mt-4 px-4 py-2 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm"
-                        >
-                            Volver al Dashboard
-                        </button>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {subjects.map((subject) => (
+                    {loading ? (
+                        // Estado de carga (Skeletons)
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {[1, 2, 3].map((i) => (
+                                <div
+                                    key={i}
+                                    className="h-32 bg-gray-200 rounded-lg animate-pulse"
+                                ></div>
+                            ))}
+                        </div>
+                    ) : subjects.length === 0 ? (
+                        // Sin asignaturas
+                        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+                            <p className="text-gray-600">
+                                No tienes asignaturas en tu historial.
+                            </p>
                             <button
-                                key={`${subject.subject_id}-${subject.semester}`}
-                                onClick={() => handleSelectSubject(subject.subject_id, subject.subject_name, subject.semester)}
-                                className="group bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-200 transition-all duration-200 text-left flex items-center gap-4"
+                                onClick={() => navigate("/dashboard")}
+                                className="mt-4 px-6 py-2.5 bg-[#003366] text-white font-bold rounded-lg hover:bg-[#004488] transition shadow-sm"
                             >
-                                {/* Contenedor del Icono */}
-                                <div className="p-3 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
-                                    {getIcon(subject.subject_name)}
-                                </div>
-                                {/* Texto Del contenedor*/}
-                                <div className="flex-1">
-                                    <h3 className="font-bold text-gray-800 group-hover:text-[#002e5d]">
-                                        {subject.subject_name}
-                                    </h3>
-                                    <div className="flex items-center gap-1 mt-1">
-                                        <Calendar className="w-4 h-4 text-gray-500" />
-                                        <span className="text-sm text-gray-600">{subject.semester}</span>
-                                    </div>
-                                </div>
-                                <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-[#002e5d]" />
+                                Volver al Dashboard
                             </button>
-                        ))}
-                    </div>
-                )}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {subjects.map((subject) => (
+                                <button
+                                    key={`${subject.subject_id}-${subject.semester}`}
+                                    onClick={() => handleSelectSubject(subject.subject_id, subject.subject_name, subject.semester)}
+                                    className="group bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-200 transition-all duration-200 text-left flex items-center gap-4"
+                                >
+                                    {/* Contenedor del Icono */}
+                                    <div className="p-3 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
+                                        {getIcon(subject.subject_name)}
+                                    </div>
+                                    {/* Texto Del contenedor*/}
+                                    <div className="flex-1">
+                                        <h3 className="font-bold text-gray-800 group-hover:text-[#002e5d]">
+                                            {subject.subject_name}
+                                        </h3>
+                                        <div className="flex items-center gap-1 mt-1">
+                                            <Calendar className="w-4 h-4 text-gray-500" />
+                                            <span className="text-sm text-gray-600">{subject.semester}</span>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-[#002e5d]" />
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </main>
             <BottomNavigation />
         </div>

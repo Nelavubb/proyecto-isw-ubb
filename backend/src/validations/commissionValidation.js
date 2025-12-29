@@ -1,18 +1,36 @@
 import Joi from 'joi';
 
 /**
+ * Sanitiza strings para prevenir XSS
+ */
+const sanitizeString = (value, helpers) => {
+    // Eliminar tags HTML y scripts
+    const cleaned = value
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<[^>]+>/g, '')
+        .trim();
+    
+    if (cleaned !== value) {
+        return helpers.error('string.unsafe');
+    }
+    return cleaned;
+};
+
+/**
  * Validación para crear una comisión
  */
 export const createCommissionValidation = Joi.object({
     commission_name: Joi.string()
         .min(3)
         .max(100)
+        .custom(sanitizeString)
         .required()
         .messages({
             'string.min': 'El nombre de la comisión debe tener al menos 3 caracteres',
             'string.max': 'El nombre de la comisión no puede exceder 100 caracteres',
             'any.required': 'El nombre de la comisión es obligatorio',
             'string.empty': 'El nombre de la comisión no puede estar vacío',
+            'string.unsafe': 'El nombre contiene caracteres no permitidos',
         }),
     user_id: Joi.number()
         .integer()
@@ -63,12 +81,14 @@ export const createCommissionValidation = Joi.object({
     location: Joi.string()
         .min(2)
         .max(200)
+        .custom(sanitizeString)
         .required()
         .messages({
             'string.min': 'La ubicación debe tener al menos 2 caracteres',
             'string.max': 'La ubicación no puede exceder 200 caracteres',
             'any.required': 'La ubicación es obligatoria',
             'string.empty': 'La ubicación no puede estar vacía',
+            'string.unsafe': 'La ubicación contiene caracteres no permitidos',
         }),
     evaluation_group: Joi.string()
         .required()
