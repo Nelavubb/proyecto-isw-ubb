@@ -22,9 +22,11 @@ const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
 
       try {
         const evaluations = await getRecentEvaluations(parseInt(user.id));
-        setRecentEvaluations(evaluations);
+        // Asegurarse de que evaluations sea un array
+        setRecentEvaluations(Array.isArray(evaluations) ? evaluations : []);
       } catch (error) {
         console.error('Error fetching recent evaluations:', error);
+        setRecentEvaluations([]);
       } finally {
         setLoadingEvaluations(false);
       }
@@ -35,9 +37,11 @@ const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
 
       try {
         const pending = await getPendingCommissions(parseInt(user.id));
-        setPendingCommissions(pending);
+        // Asegurarse de que pending sea un array
+        setPendingCommissions(Array.isArray(pending) ? pending : []);
       } catch (error) {
         console.error('Error fetching pending commissions:', error);
+        setPendingCommissions([]);
       } finally {
         setLoadingPending(false);
       }
@@ -70,7 +74,6 @@ const EstudianteDashboard = ({ user }: EstudianteDashboardProps) => {
         {/* Transparent background, text sits on the blue h-60 block */}
         <div className="mb-8 text-white">
           <h2 className="text-3xl font-bold">Bienvenido(a), {user.name}</h2>
-          <p className="mt-1 text-white/80 text-lg">Rol: {user.role}</p>
         </div>
 
         {/* Dashboard Cards Container */}

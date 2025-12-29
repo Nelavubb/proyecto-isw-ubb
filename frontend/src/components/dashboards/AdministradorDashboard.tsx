@@ -2,9 +2,10 @@ import { User } from '../../types/auth.types';
 import Header from '../Header.tsx';
 import BottomNavigation from '../BottomNavigation';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createUser, getUsers, User as ServiceUser } from '../../services/userService';
 import { createSubject } from '../../services/subjectService';
+import { getDashboardStats, DashboardStats } from '../../services/dashboardService';
 import { Link } from 'react-router-dom';
 
 // Función para generar contraseña usando los últimos 6 dígitos del RUT
@@ -48,6 +49,15 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [teachers, setTeachers] = useState<ServiceUser[]>([]);
+  
+  // Estados para estadísticas del dashboard
+  const [stats, setStats] = useState<DashboardStats>({
+    studentsCount: 0,
+    teachersCount: 0,
+    activeCommissionsCount: 0,
+    evaluationsThisMonth: 0
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
 
   const [formData, setFormData] = useState<{ rut: string; user_name: string; role: string; password: string }>({
     rut: '',
@@ -62,7 +72,24 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
   });
   const [errors, setErrors] = useState<string[]>([]);
 
-  useState(() => {
+  // Cargar estadísticas al montar el componente
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoadingStats(true);
+        const statsData = await getDashboardStats();
+        setStats(statsData);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+    fetchDashboardData();
+  }, []);
+
+  // Cargar profesores para el modal de asignaturas
+  useEffect(() => {
     const fetchTeachers = async () => {
       try {
         const users = await getUsers();
@@ -72,7 +99,7 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
       }
     };
     fetchTeachers();
-  });
+  }, []);
 
   const handleCloseModal = () => {
     setShowModal(false);
@@ -164,7 +191,6 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
         {/* Welcome Section */}
         <div className="mb-6 text-white">
           <h2 className="text-3xl font-bold">Bienvenido(a), {user.name}</h2>
-          <p className="mt-1 text-white/80">Rol: {user.role}</p>
         </div>
 
         {/* Estadísticas Generales */}
@@ -177,7 +203,11 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
                 </svg>
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-gray-800">342</h3>
+            <h3 className="text-2xl font-bold text-gray-800">
+              {loadingStats ? (
+                <span className="animate-pulse bg-gray-200 rounded w-16 h-8 inline-block"></span>
+              ) : stats.studentsCount}
+            </h3>
             <p className="text-gray-600 text-sm">Estudiantes Activos</p>
           </div>
 
@@ -189,7 +219,11 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
                 </svg>
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-gray-800">45</h3>
+            <h3 className="text-2xl font-bold text-gray-800">
+              {loadingStats ? (
+                <span className="animate-pulse bg-gray-200 rounded w-16 h-8 inline-block"></span>
+              ) : stats.teachersCount}
+            </h3>
             <p className="text-gray-600 text-sm">Profesores</p>
           </div>
 
@@ -201,7 +235,11 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
                 </svg>
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-gray-800">28</h3>
+            <h3 className="text-2xl font-bold text-gray-800">
+              {loadingStats ? (
+                <span className="animate-pulse bg-gray-200 rounded w-16 h-8 inline-block"></span>
+              ) : stats.activeCommissionsCount}
+            </h3>
             <p className="text-gray-600 text-sm">Comisiones Activas</p>
           </div>
 
@@ -213,7 +251,11 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
                 </svg>
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-gray-800">156</h3>
+            <h3 className="text-2xl font-bold text-gray-800">
+              {loadingStats ? (
+                <span className="animate-pulse bg-gray-200 rounded w-16 h-8 inline-block"></span>
+              ) : stats.evaluationsThisMonth}
+            </h3>
             <p className="text-gray-600 text-sm">Evaluaciones Este Mes</p>
           </div>
         </div>
@@ -293,42 +335,6 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
           </div>
         </div>
 
-        {/* Actividad Reciente */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-xl font-bold text-gray-800 mb-4">Actividad Reciente del Sistema</h3>
-
-          <div className="space-y-3">
-            <div className="flex items-center gap-4 p-3 border-l-4 border-green-500 bg-green-50">
-              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div className="flex-1">
-                <p className="text-gray-800 font-medium">Comisión de Derecho Civil I completada</p>
-                <p className="text-gray-500 text-sm">Hace 2 horas</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 p-3 border-l-4 border-blue-500 bg-blue-50">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
-              <div className="flex-1">
-                <p className="text-gray-800 font-medium">Nuevo profesor registrado: Dr. Ricardo Fernández</p>
-                <p className="text-gray-500 text-sm">Hace 5 horas</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 p-3 border-l-4 border-purple-500 bg-purple-50">
-              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <div className="flex-1">
-                <p className="text-gray-800 font-medium">Nueva comisión programada para el 20 de Octubre</p>
-                <p className="text-gray-500 text-sm">Hace 1 día</p>
-              </div>
-            </div>
-          </div>
-        </div>
       </main>
 
       {/* Modal para agregar usuario */}
@@ -361,7 +367,7 @@ const AdministradorDashboard = ({ user }: AdministradorDashboardProps) => {
                   type="text"
                   value={formData.rut}
                   onChange={(e) => setFormData({ ...formData, rut: e.target.value })}
-                  placeholder="12.345.678-9"
+                  placeholder="12345678-9"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
                 />
               </div>
